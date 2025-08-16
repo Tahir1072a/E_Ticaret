@@ -1,0 +1,1983 @@
+openapi: 3.0.0
+info:
+  title: E-Ticaret API
+  version: 1.0.0
+  description: Base Product, Admin User, Seller Application, Order, Cart ve Auth uçları
+servers:
+  - url: http://localhost:3000
+
+tags:
+  - name: PublicProducts
+    description: Herkese açık ürün kataloğu işlemleri
+  - name: Auth
+    description: Kullanıcı kimlik doğrulama işlemleri
+  - name: Customers
+    description: Müşteri işlemleri
+  - name: BaseProducts
+    description: Toptan ürün (Base Product) yönetimi
+  - name: StoreProducts
+    description: Satıcının kendi mağaza ürünlerini yönetme işlemleri
+  - name: SellerApplications
+    description: Kullanıcının satıcı başvurusu işlemleri
+  - name: AdminUsers
+    description: Admin için kullanıcı yönetim uçları
+  - name: AdminSellerApplications
+    description: Admin — Satıcı başvuruları yönetimi
+  - name: Orders
+    description: Müşteri sipariş işlemleri
+  - name: Store
+    description: Satıcının sipariş ve mağaza yönetimi işlemleri
+  - name: Cart
+    description: Sepet işlemleri
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    PriceHistoryEntry:
+      type: object
+      properties:
+        price:
+          type: number
+        date:
+          type: string
+          format: date-time
+        user:
+          type: string
+          description: Fiyatı değiştiren kullanıcının ID'si
+    BaseProduct:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "66bc6e44a455a44a88a44a55"
+        masterNumber:
+          type: string
+          example: "MAT-100245"
+        masterName:
+          type: string
+          example: "Deri Spor Ayakkabı"
+        masterPrice:
+          type: number
+          example: 1299.90
+        masterStock:
+          type: integer
+          example: 10000
+        masterPriceHistory:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceHistoryEntry'
+        masterDate:
+          type: string
+          format: date-time
+          example: "2025-08-13T12:21:00.000Z"
+        masterCategory:
+          type: string
+          example: "Ayakkabı"
+        isActive:
+          type: boolean
+          default: true
+    UpdateBaseProductInput:
+      type: object
+      properties:
+        masterName:
+          type: string
+        masterPrice:
+          type: number
+        masterCategory:
+          type: string
+    PublicProductResponse:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "66bc5e44a455a44a88a44a44"
+        price:
+          type: number
+          example: 1499.99
+        stock:
+          type: integer
+          example: 50
+        description:
+          type: string
+          example: "Yüksek kaliteli, rahat spor ayakkabı."
+        baseProduct:
+          type: object
+          properties:
+            masterName:
+              type: string
+              example: "Deri Spor Ayakkabı"
+            masterCategory:
+              type: string
+              example: "Ayakkabı"
+        seller:
+          type: object
+          properties:
+            storeName:
+              type: string
+              example: "AkssStore"
+    SellerInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Jane Doe"
+        storeName:
+          type: string
+          example: "Doe Shoes"
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 66bb1c2de6b0d3b5b2d7f111
+        name:
+          type: string
+          example: Ahmet
+        surname:
+          type: string
+          example: Yılmaz
+        username:
+          type: string
+          example: ahmety
+        email:
+          type: string
+          example: ahmet@example.com
+        role:
+          type: string
+          enum: [Admin, Seller, Customer, Applicant]
+          example: Customer
+        isActive:
+          type: boolean
+          default: true
+        shippingAddresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShippingAddress'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    SellerUser:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            storeName:
+              type: string
+              example: "Doe Shoes"
+            sellerId:
+              type: string
+              example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+    CreateUserInput:
+      type: object
+      required: [email, username, password]
+      properties:
+        name:
+          type: string
+          example: Ahmet
+        surname:
+          type: string
+          example: Yılmaz
+        username:
+          type: string
+          example: ahmety
+        email:
+          type: string
+          example: ahmet@example.com
+        password:
+          type: string
+          example: StrongP@ssw0rd
+        role:
+          type: string
+          enum: [Admin, Seller, Customer, Applicant]
+          example: Customer
+    UpdateUserInput:
+      type: object
+      properties:
+        name:
+          type: string
+        surname:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+          enum: [Admin, Seller, Customer, Applicant]
+    UpdateCustomerInput:
+      type: object
+      properties:
+        name:
+          type: string
+        surname:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        shippingAddresses:
+          $ref: '#/components/schemas/ShippingAddress'
+    UserAddressesResponse:
+      type: object
+      properties:
+        shippingAddresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShippingAddress'
+    SellerApplication:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 66ba0f69e6b0d3b5b2d7f111
+        user:
+          type: string
+          example: 66b9f4b6e6b0d3b5b2d7f000
+        storeName:
+          type: string
+          example: "AkssStore"
+        shippingAddress:
+          $ref: '#/components/schemas/ShippingAddress'
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+          example: pending
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    PopulatedSellerApplication:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 66ba0f69e6b0d3b5b2d7f111
+        user:
+          type: object
+          properties:
+            _id:
+              type: string
+              example: 66b9f4b6e6b0d3b5b2d7f000
+            name:
+              type: string
+              example: "Ahmet"
+            email:
+              type: string
+              example: "ahmet@example.com"
+            username:
+              type: string
+              example: "ahmety"
+        storeName:
+          type: string
+          example: "AkssStore"
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+          example: pending
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateApplicationInput:
+      type: object
+      required: [storeName]
+      properties:
+        storeName:
+          type: string
+          example: "Yeni Mağazam"
+        shippingAddress:
+          $ref: '#/components/schemas/ShippingAddress'
+    UpdateApplicationStatusInput:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [approved, rejected]
+          example: approved
+    StoreProductResponse:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "66bc5e44a455a44a88a44a44"
+        baseProduct:
+          type: string
+          example: "66b9f4b6e6b0d3b5b2d7f111"
+        seller:
+          type: string
+          example: "66b9f4b6e6b0d3b5b2d7f000"
+        currentPrice:
+          type: number
+          example: 1499.99
+        priceHistory:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceHistoryEntry'
+        stock:
+          type: integer
+          example: 50
+        description:
+          type: string
+          example: "Yüksek kaliteli, rahat spor ayakkabı."
+        isActive:
+          type: boolean
+          example: true
+        imgUrl:
+          type: string
+          example: "http://example.com/images/shoe.jpg"
+    CreateStoreProductInput:
+      type: object
+      required: [baseProductId, currentPrice, stock, description]
+      properties:
+        baseProductId:
+          type: string
+          description: Toptan ürün listesindeki ürünün ID'si
+          example: "66b9f4b6e6b0d3b5b2d7f111"
+        currentPrice:
+          type: number
+          description: Satıcının belirlediği satış fiyatı
+          example: 1499.99
+        stock:
+          type: integer
+          description: Mağazadaki stok adedi
+          example: 50
+        description:
+          type: string
+          description: Ürün için satıcının açıklaması
+          example: "Yüksek kaliteli, rahat spor ayakkabı."
+        imgUrl:
+          type: string
+          description: Ürün görseli URL'i
+    UpdateStoreProductInput:
+      type: object
+      properties:
+        currentPrice:
+          type: number
+          description: Yeni satış fiyatı
+          example: 1549.99
+        description:
+          type: string
+          description: Yeni ürün açıklaması
+          example: "Su geçirmez, yeni sezon spor ayakkabı."
+        isActive:
+          type: boolean
+          description: Ürünün mağazada aktif olup olmadığı
+          example: false
+        imgUrl:
+          type: string
+    UpdateStockInput:
+      type: object
+      required: [quantity]
+      properties:
+        quantity:
+          type: integer
+          description: Stoğa eklenecek veya çıkarılacak miktar (negatif değer stoktan düşer)
+          example: -5
+    ShippingAddress:
+      type: object
+      properties:
+        fullName:
+          type: string
+          example: Ahmet Yılmaz
+        phone:
+          type: string
+          example: "+90 555 555 55 55"
+        address:
+          type: string
+          example: "Cumhuriyet Mah. No:10 Daire:5"
+        city:
+          type: string
+          example: "İstanbul"
+        district:
+          type: string
+          example: "Kadıköy"
+        postalCode:
+          type: string
+          example: "34710"
+    Order:
+      type: object
+      properties:
+        _id:
+          type: string
+        user:
+          type: string
+        orderItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/CartItem"
+        shippingAddress:
+          $ref: "#/components/schemas/ShippingAddress"
+        paymentMethod:
+          type: string
+          example: CreditCard
+        totalPrice:
+          type: number
+        isPaid:
+          type: boolean
+          default: false
+        paidAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          example: Pending
+    PopulatedOrderUser:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+    PopulatedOrder:
+      type: object
+      properties:
+        _id:
+          type: string
+        user:
+          $ref: '#/components/schemas/PopulatedOrderUser'
+        orderItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/CartItem"
+        shippingAddress:
+          $ref: "#/components/schemas/ShippingAddress"
+        paymentMethod:
+          type: string
+        totalPrice:
+          type: number
+        isPaid:
+          type: boolean
+        paidAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+    CartItem:
+      type: object
+      properties:
+        product:
+          type: string
+          description: Product ObjectId
+          example: 66b9f4b6e6b0d3b5b2d7f111
+        quantity:
+          type: integer
+          example: 2
+        price:
+          type: number
+          example: 199.9
+    Cart:
+      type: object
+      properties:
+        user:
+          type: string
+          example: 66b9f4b6e6b0d3b5b2d7f000
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CartItem"
+    PopulatedCartItem:
+      type: object
+      properties:
+        quantity:
+          type: integer
+          example: 2
+        price:
+          type: number
+          example: 199.9
+        product:
+          type: object
+          properties:
+            stock:
+              type: integer
+              example: 42
+            description:
+              type: string
+              example: "Yüksek kaliteli, rahat spor ayakkabı."
+            baseProduct:
+              type: object
+              properties:
+                masterName:
+                  type: string
+                  example: "Deri Spor Ayakkabı"
+            seller:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Ahmet"
+                storeName:
+                  type: string
+                  example: "AkssStore"
+    PopulatedCart:
+      type: object
+      properties:
+        _id:
+          type: string
+        user:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PopulatedCartItem"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        totalPrice:
+          type: number
+          example: 399.8
+    RemoveFromCartResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Ürün sepetten kaldırıldı"
+        cart:
+          $ref: '#/components/schemas/PopulatedCart'
+    RegisterUserInput:
+      type: object
+      required: [email, username, password]
+      properties:
+        email:
+          type: string
+          example: user@example.com
+        username:
+          type: string
+          example: myusername
+        password:
+          type: string
+          example: MyStrongPassword123
+    LoginUserInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          example: user@example.com
+        password:
+          type: string
+          example: MyStrongPassword123
+    AuthResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI...
+    LoginSuccessResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Giriş başarılı!"
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI..."
+        role:
+          type: string
+          example: "Customer"
+    SellerShippingAddress:
+      type: object
+      properties:
+        address:
+          type: string
+          example: "İstiklal Cad. No:10"
+        city:
+          type: string
+          example: "İstanbul"
+        country:
+          type: string
+          example: "Turkey"
+    SellerRegisterInput:
+      type: object
+      properties:
+        email:
+          type: string
+          example: "jane.doe@example.com"
+        username:
+          type: string
+          example: "janedoe"
+        password:
+          type: string
+          example: "Guclu!123"
+        name:
+          type: string
+          example: "Jane"
+        surname:
+          type: string
+          example: "Doe"
+        phoneNumber:
+          type: string
+          example: "+90 555 111 22 33"
+        age:
+          type: integer
+          example: 27
+        storeName:
+          type: string
+          example: "Doe Shoes"
+        shippingAddress:
+          $ref: "#/components/schemas/SellerShippingAddress"
+
+paths:
+  /api/products:
+    get:
+      summary: Herkese açık tüm ürünleri listeler
+      tags: [PublicProducts]
+      responses:
+        '200':
+          description: Ürünlerin listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PublicProductResponse'
+        '500':
+          description: Sunucu hatası
+  
+  /api/products/{id}:
+    get:
+      summary: ID'ye göre herkese açık bir ürün getirir
+      tags: [PublicProducts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: İstenen ürün
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicProductResponse'
+        '404':
+          description: Ürün bulunamadı
+        '500':
+          description: Sunucu hatası
+
+  /api/products/category/{category}:
+    get:
+      summary: Kategoriye göre herkese açık ürünleri listeler
+      tags: [PublicProducts]
+      parameters:
+        - name: category
+          in: path
+          required: true
+          schema:
+            type: string
+          example: Ayakkabı
+      responses:
+        '200':
+          description: İlgili kategorideki ürünler
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PublicProductResponse'
+        '404':
+          description: Bu kategoriye ait ürün bulunamadı
+        '500':
+          description: Sunucu hatası
+
+  /api/products/store-name/{storeName}:
+    get:
+      summary: Mağaza adına göre herkese açık ürünleri listeler
+      tags: [PublicProducts]
+      parameters:
+        - name: storeName
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "Doe Shoes"
+      responses:
+        '200':
+          description: İlgili mağazadaki ürünler
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PublicProductResponse'
+        '404':
+          description: Bu isimde bir mağaza bulunamadı
+        '500':
+          description: Sunucu hatası
+  
+  /api/register:
+    post:
+      summary: Yeni müşteri kaydı oluşturur
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterUserInput'
+      responses:
+        '201':
+          description: Kullanıcı başarıyla kaydedildi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Bu e-posta veya kullanıcı adı zaten mevcut.
+        '500':
+          description: Sunucu hatası
+  /api/login:
+    post:
+      summary: Kullanıcı girişi yapar
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginUserInput'
+      responses:
+        '200':
+          description: Giriş başarılı
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginSuccessResponse'
+        '400':
+          description: Hatalı şifre.
+        '404':
+          description: Kullanıcı bulunamadı.
+        '500':
+          description: Sunucu hatası.
+  /api/seller-register:
+    post:
+      summary: Satıcı olarak kaydolur ve başvuru oluşturur
+      description: |
+        Yeni bir kullanıcıyı "Applicant" rolüyle oluşturur ve aynı anda bu kullanıcı için bir satıcı başvurusu (`SellerApplication`) yaratır. İki işlem de tek bir transaction içinde gerçekleşir.
+        - E-posta veya kullanıcı adı mevcutsa **400** döner.
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SellerRegisterInput'
+            examples:
+              ornek:
+                summary: Geçerli istek gövdesi
+                value:
+                  email: "jane.doe@example.com"
+                  username: "janedoe"
+                  password: "Guclu!123"
+                  name: "Jane"
+                  surname: "Doe"
+                  phoneNumber: "+90 555 111 22 33"
+                  age: 27
+                  storeName: "Doe Shoes"
+                  shippingAddress:
+                    address: "İstiklal Cad. No:10"
+                    city: "İstanbul"
+                    country: "Turkey"
+      responses:
+        '201':
+          description: Başvuru başarıyla işleme alındı.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              examples:
+                basarili:
+                  value:
+                    message: "Seller başvurunuz işleme alınmıştır. Gerekli bilgilendirme en kısa sürede yapılacaktır"
+        '400':
+          description: Bu kullanıcı zaten sisteme kayıtlıdır.
+        '500':
+          description: Sunucu hatası
+  
+  /api/customers:
+    delete:
+      summary: Müşteri Hesabını Sil (Pasif Yap)
+      description: "Giriş yapmış kullanıcının kendi hesabını pasif hale getirmesini sağlar (`isActive: false`)."
+      tags: [Customers]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Kullanıcı hesabı başarıyla silindi.
+        '401':
+          description: Yetkisiz.
+        '500':
+          description: Sunucu hatası.
+  
+  /api/customers/sellers:
+    get:
+      summary: Tüm satıcıları listeler
+      description: "Sistemdeki tüm satıcıların adını ve mağaza adını listeler. Kimlik doğrulaması gerektirir."
+      tags: [Customers]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Satıcı listesi başarıyla alındı.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SellerInfo'
+        '401':
+          description: Yetkisiz.
+        '500':
+          description: Sunucu hatası.
+
+  /api/customers/adresses:
+    get:
+      summary: Müşterinin Kayıtlı Adreslerini Getir
+      description: "Giriş yapmış kullanıcının profilindeki tüm kayıtlı kargo adreslerini listeler."
+      tags: [Customers]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Adres listesi başarıyla alındı.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAddressesResponse'
+        '401':
+          description: Yetkisiz.
+        '404':
+          description: Kayıtlı adres bulunamadı.
+        '500':
+          description: Sunucu hatası.
+
+  /api/customers/update:
+    put:
+      summary: Müşteri Bilgilerini Güncelle
+      description: "Giriş yapmış kullanıcının kendi profil bilgilerini (ad, e-posta vb.) güncellemesini veya yeni bir kargo adresi eklemesini sağlar."
+      tags: [Customers]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCustomerInput'
+      responses:
+        '200':
+          description: Müşteri bilgileri başarıyla güncellendi.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Yetkisiz.
+        '404':
+          description: Kullanıcı bulunamadı.
+        '500':
+          description: Sunucu hatası.
+
+  /api/customers/orders:
+    get:
+      summary: Müşterinin Siparişlerini Listele
+      description: "Giriş yapmış kullanıcının tüm siparişlerini listeler."
+      tags: [Customers]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Sipariş listesi başarıyla alındı.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PopulatedOrder'
+        '401':
+          description: Yetkisiz.
+        '500':
+          description: Sunucu hatası.
+
+  /api/customers/orders/{id}:
+    get:
+      summary: Müşterinin Belirli Bir Siparişini Getir
+      description: "Giriş yapmış kullanıcının, ID'si belirtilen siparişinin detaylarını getirir."
+      tags: [Customers]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sipariş detayı başarıyla alındı.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PopulatedOrder'
+        '401':
+          description: Yetkisiz.
+        '404':
+          description: Sipariş bulunamadı.
+        '500':
+          description: Sunucu hatası.
+
+  /api/wholesale:
+    post:
+      summary: Yeni bir base product oluşturur
+      description: Sadece **Admin** rolüne sahip kullanıcılar yeni bir ana ürün oluşturabilir.
+      tags:
+        - BaseProducts
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - masterNumber
+                - masterName
+                - masterPrice
+                - masterDate
+                - masterCategory
+              properties:
+                masterNumber:
+                  type: string
+                  example: MAT-100245
+                masterName:
+                  type: string
+                  example: Deri Spor Ayakkabı
+                masterPrice:
+                  type: number
+                  example: 1299.90
+                masterDate:
+                  type: string
+                  format: date-time
+                  example: 2025-08-13T12:21:00.000Z
+                masterCategory:
+                  type: string
+                  example: Ayakkabı
+      responses:
+        "201":
+          description: Base product başarıyla oluşturuldu.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseProduct'
+        "401":
+          description: Kimlik doğrulama başarısız.
+        "403":
+          description: Bu işlem için yetki yok.
+        "500":
+          description: Sunucu hatası
+    get:
+      summary: Tüm base product'ları listeler
+      description: "**Seller** ve **Admin** rollerine sahip kullanıcılar erişebilir."
+      tags:
+        - BaseProducts
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Base product listesi başarıyla alındı.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BaseProduct'
+        "401":
+          description: Kimlik doğrulama başarısız.
+        "403":
+          description: Bu işlem için yetki yok.
+
+  /api/wholesale/import:
+    get:
+      summary: Harici API'den toptan ürünleri içe aktarır
+      description: "Harici bir SAP API'sinden ürün verilerini çeker ve mevcut değilse veritabanına yeni `BaseProduct` olarak ekler. Kimlik doğrulaması gerektirir."
+      tags: [BaseProducts]
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: İçe aktarma işlemi tamamlandı.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "İçe aktarma işlemi tamamlandı"
+                  newProducts:
+                    type: integer
+                    example: 50
+                  existingProduct:
+                    type: integer
+                    example: 120
+        '401':
+          description: Yetkisiz.
+        '404':
+          description: Harici kaynaktan ürün bulunamadı.
+        '500':
+          description: Sunucu hatası.
+  
+  /api/wholesale/{id}:
+    get:
+      summary: ID'ye göre bir base product getirir
+      description: "**Seller** ve **Admin** rollerine sahip kullanıcılar erişebilir."
+      tags: [BaseProducts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: İstenen base product.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseProduct'
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok.
+        '404':
+          description: Ürün bulunamadı.
+        '500':
+          description: Sunucu hatası.
+    put:
+      summary: ID'ye göre bir base product günceller
+      description: Sadece **Admin** rolü güncelleyebilir. Fiyat güncellenirse, eski fiyat `masterPriceHistory` dizisine eklenir.
+      tags: [BaseProducts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBaseProductInput'
+      responses:
+        '200':
+          description: Ürün başarıyla güncellendi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseProduct'
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok.
+        '404':
+          description: Ürün bulunamadı.
+        '500':
+          description: Sunucu hatası.
+    delete:
+      summary: ID'ye göre bir base product siler (pasif yap)
+      description: "Sadece **Admin** rolü silebilir. Ürünü veritabanından silmez, `isActive` alanını `false` yapar (soft delete)."
+      tags: [BaseProducts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ürün başarıyla silindi.
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok.
+        '404':
+          description: Ürün bulunamadı.
+        '500':
+          description: Sunucu hatası.
+
+  /api/wholesale/name/{masterName}:
+    get:
+      summary: Ada göre bir base product getirir
+      description: "**Seller** ve **Admin** rollerine sahip kullanıcılar erişebilir."
+      tags: [BaseProducts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: masterName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: İstenen base product.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseProduct'
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok.
+        '404':
+          description: Ürün bulunamadı.
+        '500':
+          description: Sunucu hatası.
+
+  /api/store-products:
+    post:
+      summary: Mağazaya yeni ürün ekle
+      description: "Giriş yapmış satıcının, toptan ürünler listesinden seçtiği bir ürünü kendi mağazasına eklemesini sağlar. Bu işlem bir transaction içinde gerçekleşir ve ana ürünün stoğundan düşülür. Sadece **Seller** rolü gerektirir."
+      tags: [StoreProducts]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStoreProductInput'
+      responses:
+        '201':
+          description: Ürün mağazaya başarıyla eklendi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreProductResponse'
+        '400':
+          description: Geçersiz istek (Örn: Ürün mağazada zaten mevcut, stok 1000'den fazla, yetersiz ana stok).
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '404':
+          description: Ana ürün (BaseProduct) bulunamadı.
+        '500':
+          description: Sunucu hatası.
+    get:
+      summary: Mağazadaki tüm ürünleri listele
+      description: "Giriş yapmış satıcının kendi mağazasındaki tüm aktif (`isActive: true`) ürünleri listeler. Sadece **Seller** rolü gerektirir."
+      tags: [StoreProducts]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Mağaza ürünleri listesi.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StoreProductResponse'
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '404':
+          description: Hiçbir ürün bulunamadı.
+        '500':
+          description: Sunucu hatası.
+
+  /api/store-products/{id}:
+    get:
+      summary: Mağazadaki bir ürünü ID ile getir
+      description: "Giriş yapmış satıcının, ID'si belirtilen aktif (`isActive: true`) ürünü kendi mağazasından getirmesini sağlar. Sadece **Seller** rolü gerektirir."
+      tags: [StoreProducts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Mağaza ürününün ID'si
+          schema:
+            type: string
+      responses:
+        '200':
+          description: İstenen mağaza ürünü.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreProductResponse'
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '404':
+          description: Ürün bulunamadı veya satıcıya ait değil.
+        '500':
+          description: Sunucu hatası.
+    put:
+      summary: Mağazadaki bir ürünü güncelle
+      description: "Giriş yapmış satıcının, ID'si belirtilen ürünü kendi mağazasında güncellemesini sağlar. Sadece **Seller** rolü gerektirir."
+      tags: [StoreProducts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Güncellenecek mağaza ürününün ID'si
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStoreProductInput'
+      responses:
+        '200':
+          description: Ürün başarıyla güncellendi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreProductResponse'
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '404':
+          description: Ürün bulunamadı veya satıcıya ait değil.
+        '500':
+          description: Sunucu hatası.
+    delete:
+      summary: Mağazadaki bir ürünü sil (pasif yap)
+      description: "Giriş yapmış satıcının, ID'si belirtilen ürünü kendi mağazasından silmesini (isActive: false) sağlar. Sadece **Seller** rolü gerektirir."
+      tags: [StoreProducts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Silinecek mağaza ürününün ID'si
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ürün başarıyla silindi.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Deri Spor Ayakkabı ürünü başarıyla silinmiştir."
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '404':
+          description: Ürün bulunamadı veya satıcıya ait değil.
+        '500':
+          description: Sunucu hatası.
+  
+  /api/store-products/stock/{id}:
+    patch:
+      summary: Mağazadaki bir ürünün stoğunu güncelle
+      description: "Giriş yapmış satıcının, ID'si belirtilen ürünün sadece stok bilgisini güncellemesini sağlar. Sadece **Seller** rolü gerektirir."
+      tags: [StoreProducts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Stoğu güncellenecek mağaza ürününün ID'si
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStockInput'
+      responses:
+        '200':
+          description: Ürün stoğu başarıyla güncellendi.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Stok başarıyla güncellendi. Yeni stock: 45"
+        '400':
+          description: Geçersiz istek (örn: stok eksiye düşürülemez).
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '404':
+          description: Ürün bulunamadı veya satıcıya ait değil.
+        '500':
+          description: Sunucu hatası.
+
+  /api/store-products/name/{name}:
+    get:
+      summary: Mağazadaki bir ürünü ana ürün adına göre getir
+      description: "Giriş yapmış satıcının, ana ürün adına göre aktif (`isActive: true`) bir ürünü kendi mağazasından aramasını sağlar. Sadece **Seller** rolü gerektirir."
+      tags: [StoreProducts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: Aranan ana ürünün adı
+          schema:
+            type: string
+            example: "Deri Spor Ayakkabı"
+      responses:
+        '200':
+          description: Bulunan mağaza ürünü.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreProductResponse'
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '404':
+          description: Ürün bulunamadı.
+        '500':
+          description: Sunucu hatası.
+
+  /api/store-products/seller-products:
+    get:
+      summary: Satıcının kendi mağazasındaki tüm ürünleri listeler
+      description: "Giriş yapmış satıcının kendi mağazasındaki tüm ürünleri listeler. Sadece **Seller** rolü gerektirir."
+      tags: [StoreProducts]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Mağaza ürünleri listesi.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StoreProductResponse'
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '404':
+          description: Mağazanızda hiçbir ürün bulunmamaktadır.
+        '500':
+          description: Sunucu hatası.
+
+  /api/admin/users:
+    post:
+      summary: Yeni kullanıcı oluştur (Admin)
+      tags: [AdminUsers]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserInput"
+      responses:
+        "201":
+          description: Kullanıcı oluşturuldu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    $ref: "#/components/schemas/User"
+        "400":
+          description: Email/username zaten kayıtlı
+        "401":
+          description: Yetkisiz
+        "403":
+          description: Erişim yok (rol)
+        "500":
+          description: Sunucu hatası
+    get:
+      summary: Tüm kullanıcıları listele (Admin)
+      tags: [AdminUsers]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Kullanıcı listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+        "401":
+          description: Yetkisiz
+        "403":
+          description: Erişim yok (rol)
+        "404":
+          description: Herhangi bir kayıtlı kullanıcı bulunamadı
+        "500":
+          description: Sunucu hatası
+
+  /api/admin/users/email/{email}:
+    get:
+      summary: Email’e göre kullanıcı getir (Admin)
+      tags: [AdminUsers]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+          example: ahmet@example.com
+      responses:
+        "200":
+          description: Kullanıcı bulundu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Yetkisiz
+        "403":
+          description: Erişim yok (rol)
+        "404":
+          description: Kullanıcı bulunamadı
+        "500":
+          description: Sunucu hatası
+
+  /api/admin/users/sellers:
+    get:
+      summary: Tüm satıcıları listele (Admin)
+      description: "Sistemdeki tüm satıcı (role: 'Seller') kullanıcılarını listeler."
+      tags: [AdminUsers]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Satıcı kullanıcıların listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SellerUser'
+        '401':
+          description: Yetkisiz
+        '403':
+          description: Erişim yok (rol)
+        '500':
+          description: Sunucu hatası
+
+  /api/admin/users/{id}:
+    get:
+      summary: ID’ye göre kullanıcı getir (Admin)
+      tags: [AdminUsers]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: 66bb1c2de6b0d3b5b2d7f111
+      responses:
+        "200":
+          description: Kullanıcı
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Yetkisiz
+        "403":
+          description: Erişim yok (rol)
+        "404":
+          description: Kullanıcı bulunamadı
+        "500":
+          description: Sunucu hatası
+    put:
+      summary: Kullanıcı güncelle (Admin)
+      tags: [AdminUsers]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: 66bb1c2de6b0d3b5b2d7f111
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserInput"
+      responses:
+        "200":
+          description: Güncellenmiş kullanıcı
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    $ref: "#/components/schemas/User"
+        "401":
+          description: Yetkisiz
+        "403":
+          description: Erişim yok (rol)
+        "404":
+          description: Kullanıcı bulunamadı
+        "500":
+          description: Sunucu hatası
+    delete:
+      summary: Kullanıcıyı pasif hale getir (Admin)
+      description: "Kullanıcıyı veritabanından silmez, bunun yerine `isActive` alanını `false` olarak günceller (soft delete)."
+      tags: [AdminUsers]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: 66bb1c2de6b0d3b5b2d7f111
+      responses:
+        "200":
+          description: Silme mesajı
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Ahmet Yılmaz adlı kullanıcı başarıyla silinmiştir. ID: 66bb1c2de6b0d3b5b2d7f111"
+        "401":
+          description: Yetkisiz
+        "403":
+          description: Erişim yok (rol)
+        "404":
+          description: Kullanıcı bulunamadı
+        "500":
+          description: Sunucu hatası
+  
+  /api/seller-applications:
+    post:
+      summary: Satıcı başvurusu oluştur
+      description: Giriş yapmış kullanıcının kendi adına satıcı başvurusu oluşturmasını sağlar.
+      tags: [SellerApplications]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApplicationInput'
+      responses:
+        '201':
+          description: Başvuru başarıyla oluşturuldu.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerApplication'
+        '400':
+          description: Geçersiz istek (örn: Zaten mevcut bir başvuru var).
+        '401':
+          description: Yetkisiz.
+        '500':
+          description: Sunucu hatası.
+
+  /api/admin/seller-applications/pending:
+    get:
+      summary: Bekleyen (pending) başvuruları listele
+      tags: [AdminSellerApplications]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Pending başvurular listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PopulatedSellerApplication'
+        '401':
+          description: Yetkisiz
+        '403':
+          description: Erişim yok (rol)
+        '500':
+          description: Sunucu hatası
+
+  /api/admin/seller-applications/all:
+    get:
+      summary: Tüm başvuruları listele
+      tags: [AdminSellerApplications]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Başvuruların tamamı
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PopulatedSellerApplication'
+        '401':
+          description: Yetkisiz
+        '403':
+          description: Erişim yok (rol)
+        '500':
+          description: Sunucu hatası
+
+  /api/admin/seller-applications/{id}/status:
+    put:
+      summary: Başvuru durumunu güncelle (approved/rejected)
+      description: Onay durumuna göre kullanıcı terfi/silme işlemleri transaction ile yapılır.
+      tags: [AdminSellerApplications]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Başvuru ObjectId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateApplicationStatusInput'
+      responses:
+        '200':
+          description: Güncelleme sonucu mesajı
+        '400':
+          description: Geçersiz status
+        '401':
+          description: Yetkisiz
+        '403':
+          description: Erişim yok (rol)
+        '404':
+          description: Başvuru bulunamadı
+        '409':
+          description: Başvuru zaten işlenmiş
+        '500':
+          description: Sunucu hatası
+
+  /api/admin/seller-applications/{id}:
+    delete:
+      summary: Başvuruyu sil
+      tags: [AdminSellerApplications]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Başvuru ObjectId
+      responses:
+        '200':
+          description: Silme mesajı ve silinen kayıt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerApplication'
+        '401':
+          description: Yetkisiz
+        '403':
+          description: Erişim yok (rol)
+        '404':
+          description: Bulunamadı
+        '500':
+          description: Sunucu hatası
+
+  /api/orders:
+    post:
+      summary: Yeni sipariş oluşturur
+      description: "Kullanıcının sepetindeki ürünlerden yeni bir sipariş oluşturur. Eğer istekte `shippingAddress` belirtilmezse, kullanıcının kayıtlı adresi kullanılır. Kayıtlı adres de yoksa hata döner."
+      tags: [Orders]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                paymentMethod:
+                  type: string
+                  enum: [COD, CreditCard, BankTransfer]
+                  example: CreditCard
+                shippingAddress:
+                  $ref: "#/components/schemas/ShippingAddress"
+            example:
+              paymentMethod: CreditCard
+              shippingAddress:
+                fullName: "Ahmet Yılmaz"
+                phone: "+90 555 555 55 55"
+                address: "Cumhuriyet Mah. No:10 Daire:5"
+                city: "İstanbul"
+                district: "Kadıköy"
+                postalCode: "34710"
+      responses:
+        "201":
+          description: Sipariş başarıyla oluşturuldu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "401":
+          description: Yetkisiz
+        "404":
+          description: Sepet boş veya teslimat adresi bulunamadı
+        "500":
+          description: Sunucu hatası
+
+  /api/orders/{id}/pay:
+    put:
+      summary: Sipariş ödemesini onayla
+      description: "Belirtilen siparişin ödemesini onaylar. Bu işlem başarılı olduğunda, sipariş edilen ürünlerin stoğu düşürülür, sipariş 'ödenmiş' olarak işaretlenir ve kullanıcının sepeti temizlenir. Bu işlemler bir transaction içinde yapılır."
+      tags: [Orders]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Ödemesi onaylanacak siparişin ID'si
+      responses:
+        "200":
+          description: Sipariş ödemesi başarıyla gerçekleşti
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          description: Bu sipariş zaten ödenmiş
+        "401":
+          description: Yetkisiz
+        "404":
+          description: Sipariş bulunamadı
+        "500":
+          description: Sunucu hatası
+  
+  /api/store/orders:
+    get:
+      summary: Satıcının Kendi Siparişlerini Listele
+      description: "Giriş yapmış satıcının, kendi ürünlerini içeren tüm siparişleri listeler. Siparişler, oluşturulma tarihine göre en yeniden en eskiye doğru sıralanır."
+      tags: [Store]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Satıcının siparişleri başarıyla getirildi veya satıcının hiç ürünü yok.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/PopulatedOrder'
+                  - type: object
+                    properties:
+                      message:
+                        type: string
+                        example: "Bu satıcıya ait hiçbir ürün bulunmamaktadır"
+                      data:
+                        type: array
+                        items: {}
+                        example: []
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '500':
+          description: Sunucu hatası.
+
+  /api/store/orders/{id}:
+    get:
+      summary: Satıcının Belirli Bir Ürünü İçeren Siparişlerini Listele
+      description: "Giriş yapmış satıcının, ID'si belirtilen ürünü içeren tüm siparişleri listeler."
+      tags: [Store]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Siparişlerde aranacak ürünün ID'si
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Belirtilen ürünü içeren siparişlerin listesi.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PopulatedOrder'
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '500':
+          description: Sunucu hatası.
+
+  /api/carts:
+    get:
+      summary: Kullanıcının sepetini getirir
+      tags: [Cart]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Sepet verisi veya "Sepetiniz Boş" mesajı döner
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/PopulatedCart"
+                  - type: object
+                    properties:
+                      message:
+                        type: string
+                        example: Sepetiniz Boş
+        '401':
+          description: Yetkisiz
+        '500':
+          description: Sunucu hatası
+    post:
+      summary: Sepete ürün ekler (varsa miktarı arttırır)
+      tags: [Cart]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - productId
+                - quantity
+              properties:
+                productId:
+                  type: string
+                  example: 66b9f4b6e6b0d3b5b2d7f111
+                quantity:
+                  type: integer
+                  example: 1
+      responses:
+        '200':
+          description: Güncel sepet döner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PopulatedCart"
+        '401':
+          description: Yetkisiz
+        '404':
+          description: Ürün bulunamadı
+        '500':
+          description: Sunucu hatası
+
+  /api/carts/items/{productId}:
+    delete:
+      summary: Sepetten belirli ürünü kaldırır
+      tags: [Cart]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Kaldırılacak ürünün ObjectId'si
+      responses:
+        '200':
+          description: Ürün kaldırıldı ve güncel sepet döner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemoveFromCartResponse'
+        '401':
+          description: Yetkisiz
+        '404':
+          description: Sepet bulunamadı
+        '500':
+          description: Sunucu hatası
