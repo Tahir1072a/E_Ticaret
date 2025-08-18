@@ -11,6 +11,7 @@ import wholeSaleRoutes from "./routes/wholeSaleRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import storeRoutes from "./routes/orderRoutes.js";
 import customerRoutes from "./routes/customerRoutes.js";
+import searchRoutes from "./routes/searchRoutes.js";
 
 import cors from "cors";
 import swaggerUi from "swagger-ui-express";
@@ -29,6 +30,19 @@ mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
     console.log("MongoDB veritabanına başarıyla bağlandı.");
+
+    // Geçici bir elastich search için kod:
+    // const stream = BaseProduct.synchronize();
+    // let count = 0;
+    // stream.on("data", function (err, doc){
+    //   count++;
+    // })
+    // stream.on("close", function(){
+    //   console.log(`[Mongoosastic] Veritabanındaki ${count} adet BaseProduct başarıyla indexlendi.`);
+    // })
+    // stream.on("error", function(err){
+    //   console.error("[Mongoosastic] Indexleme sırasında hata oluştu:", err);
+    // })
   })
   .catch((err) => {
     console.error("Veritabanı bağlantı hatası:", err);
@@ -40,6 +54,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 app.use("/api/store-products", storeProductsRoutes);
 app.use("/api/admin/users", userRoutes);
 app.use("/api", authRoutes);
+app.use("/api/search", searchRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/carts", cartsRoutes);
 app.use("/api/orders", ordersRoutes);

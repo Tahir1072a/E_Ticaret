@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { priceHistoryEntrySchema } from "./commonSchemas.js";
+import mongoosastic from "mongoosastic";
 
 const baseProductSchema = new mongoose.Schema({
   masterNumber: {
@@ -42,6 +43,11 @@ const baseProductSchema = new mongoose.Schema({
 baseProductSchema.pre(/^find/, function (next) {
   this.where({ isActive: true });
   next();
+});
+
+baseProductSchema.plugin(mongoosastic, {
+  es_host: "localhost",
+  es_port: 9200,
 });
 
 export const BaseProduct = mongoose.model("Base Product", baseProductSchema);
