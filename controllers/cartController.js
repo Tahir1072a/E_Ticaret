@@ -1,4 +1,5 @@
 import Cart from "../models/cartModel.js";
+import Coupon from "../models/couponModel.js";
 import { StoreProduct } from "../models/storeProductModel.js";
 
 export const getCart = async (req, res) => {
@@ -80,6 +81,69 @@ export const removeItemFromCart = async (req, res) => {
 
     await cart.save();
     res.status(200).json({ message: "Ürün sepetten kaldırıldı", cart });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const applyCoupon = async (req, res) => {
+  try {
+    const { couponCode } = req.body;
+    const userId = req.user._id;
+
+    const coupon = await Coupon.findOne({ code: couponCode.toUpperCase() });
+    const cart = await Cart.findOne({ user: userId });
+
+    if (!cart || cart.items.length === 0) {
+      return res.status(400).json({
+        message: "Kupon uygulamak için sepetiniz boş olmaması gerekiyor.",
+      });
+    }
+
+    if (!coupon) {
+      return res.status(404).json({ message: "Geçersiz kupon kodu" });
+    } else if (!coupon.isActive) {
+      return res.status(400).json({ message: "Bu kupon artık aktif değil." });
+    } else if (!coupon.expiryDate < new Date()) {
+      return res.status(400).json({ message: "Bu kuponun süresi dolmuş" });
+    } else if (coupon.timesUsed >= coupon.usageLimit) {
+      return res
+        .status(400)
+        .json({ message: "Bu kupon kullanım limitine ulaşmıştır" });
+    } else if (
+      coupon.targetUsers &&
+      coupon.targetUsers.length > 0 &&
+      !coupon.targetUsers.map((id) => id.toString()).includes(userId.toString())
+    ) {
+      return res.status(403).json({ message: "Bu kupon size özel değildir!" });
+    }
+
+    const subTotal = cart.items.reduce(
+      (acc, item) => acc + item.quantity * item.price,
+      0
+    );
+
+    if (subTotal < coupon.minPurchaseAmount) {
+      return res.status(400).json({
+        message: `Bu kuponu kullanmak için minimum sepet tutarı: ${coupon.minPurchaseAmount} TL olmalıdır`,
+      });
+    }
+
+    let discount = 0;
+    if (coupon.discountType === "percentage") {
+      discount = (subTotal * coupon.discountValue) / 100;
+    } else if (coupon.discountType === "fixedAmount") {
+      discount = coupon.discountValue;
+    }
+
+    const total = Math.max(0, subTotal - discount);
+
+    cart.subTotal = subTotal;
+    cart.total = total;
+    cart.appliedCoupon = coupon.code;
+    await cart.save();
+
+    res.status(200).json({ message: `Kupon başarıyla uygulandı!`, data: cart });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

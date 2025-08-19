@@ -7,6 +7,7 @@ import {
   updateCustomer,
   getCustomerOrders,
   getCustomerOrderById,
+  openPackage,
 } from "../controllers/customerController.js";
 
 const router = express.Router();
@@ -15,6 +16,7 @@ router.use(protect);
 
 router.delete("/", deleteCustomer);
 router.put("/update", updateCustomer);
+router.post("/open-package", openPackage);
 router.get("/sellers", getAllSeller);
 router.get("/adresses", getAllAdresses);
 router.get("/orders", getCustomerOrders);

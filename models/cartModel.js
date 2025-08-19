@@ -28,6 +28,17 @@ const cartSchema = new mongoose.Schema(
       unique: true,
     },
     items: [cartItemSchema],
+    subTotal: {
+      type: Number,
+      default: 0,
+    },
+    total: {
+      type: Number,
+      default: 0,
+    },
+    appliedCoupon: {
+      type: String,
+    },
   },
   { timestamps: true }
 );

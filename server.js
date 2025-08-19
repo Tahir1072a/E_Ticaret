@@ -12,6 +12,7 @@ import productRoutes from "./routes/productRoutes.js";
 import storeRoutes from "./routes/orderRoutes.js";
 import customerRoutes from "./routes/customerRoutes.js";
 import searchRoutes from "./routes/searchRoutes.js";
+import couponRoutes from "./routes/couponRoutes.js";
 
 import cors from "cors";
 import swaggerUi from "swagger-ui-express";
@@ -62,6 +63,7 @@ app.use("/api/wholesale", wholeSaleRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/store", storeRoutes);
 app.use("/api/customers", customerRoutes);
+app.use("/api/coupons", couponRoutes);
 
 app.get("/", (req, res) => {
   res.send("E-ticaret API ana sayfası");

@@ -2,6 +2,7 @@ import Order from "../models/orderModel.js";
 import Cart from "../models/cartModel.js";
 import mongoose from "mongoose";
 import { StoreProduct } from "../models/storeProductModel.js";
+import Coupon from "../models/couponModel.js";
 
 export const createOrder = async (req, res) => {
   try {
@@ -39,7 +40,8 @@ export const createOrder = async (req, res) => {
       orderItems: cart.items,
       shippingAddress: finalShippingAdress,
       paymentMethod,
-      totalPrice,
+      totalPrice: cart.total,
+      appliedCoupon: cart.appliedCoupon,
       isPaid: false,
     });
 
@@ -67,6 +69,14 @@ export const confirmPayment = async (req, res) => {
     }
     if (order.isPaid) {
       return res.status(400).json({ message: "Bu sipariş zaten ödenmiş" });
+    }
+
+    if (order.appliedCoupon) {
+      await Coupon.updateOne(
+        { code: order.appliedCoupon },
+        { $inc: { timeUsed: 1 } },
+        { session }
+      );
     }
 
     for (const item of order.orederItems) {

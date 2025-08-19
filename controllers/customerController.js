@@ -1,5 +1,6 @@
 import { Seller, User } from "../models/usersModel.js";
 import Order from "../models/orderModel.js";
+import Coupon from "../models/couponModel.js";
 
 export const getAllSeller = async (req, res) => {
   try {
@@ -106,6 +107,66 @@ export const getCustomerOrderById = async (req, res) => {
     }
 
     res.status(200).json(orderDetail);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const prizePool = [
+  {
+    description: "%10 İndirim Kuponu",
+    discountType: "percentage",
+    discountValue: 10,
+    expiryDays: 7,
+  },
+  {
+    description: "25 TL İndirim Kuponu",
+    discountType: "fixedAmount",
+    discountValue: 25,
+    expiryDays: 14,
+  },
+  {
+    description: "%5 İndirim Kuponu",
+    discountType: "percentage",
+    discountValue: 5,
+    expiryDays: 30,
+  },
+  {
+    description: "50 TL İndirim Kuponu",
+    discountType: "fixedAmount",
+    discountValue: 50,
+    expiryDays: 7,
+    minPurchaseAmount: 300,
+  },
+];
+
+export const openPackage = async (req, res) => {
+  try {
+    const user = req.user;
+
+    const randomPrize = prizePool[Math.floor(Math.random() * prizePool.length)];
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + randomPrize.expiryDays);
+
+    const uniqueCode = `PAKET-${user.username.toUpperCase()}-${Date.now().toString(
+      36
+    )}`;
+
+    const newCoupon = await Coupon.create({
+      code: uniqueCode,
+      description: `Paketten çıkan hediye: ${randomPrize.description}`,
+      discountType: randomPrize.discountType,
+      discountValue: randomPrize.discountValue,
+      expiryDate: expiryDate,
+      createdBy: user._id,
+      targetUsers: [user._id],
+      usageLimit: 1,
+      minPurchaseAmount: randomPrize.minPurchaseAmount || 0,
+    });
+
+    res.status(201).json({
+      message: `Tebrikler! Bir paketi açtın ve ${randomPrize.description} kazandın!`,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

@@ -2,39 +2,49 @@ import mongoose from "mongoose";
 import { priceHistoryEntrySchema } from "./commonSchemas.js";
 import mongoosastic from "mongoosastic";
 
-const storeProductSchema = new mongoose.Schema({
-  baseProduct: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: true,
-    ref: "Base Product",
+const storeProductSchema = new mongoose.Schema(
+  {
+    baseProduct: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      ref: "Base Product",
+    },
+    seller: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      ref: "Seller",
+    },
+    currentPrice: {
+      type: Number,
+      required: true,
+    },
+    priceHistory: [priceHistoryEntrySchema],
+    stock: {
+      type: Number,
+      required: true,
+      default: 1,
+    },
+    description: {
+      type: String,
+      required: true,
+    },
+    isActive: {
+      type: Boolean,
+      required: true,
+    },
+    onSale: {
+      type: Boolean,
+      default: false,
+    },
+    salePrice: {
+      type: Number,
+    },
+    imgUrl: {
+      type: String,
+    },
   },
-  seller: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: true,
-    ref: "Seller",
-  },
-  currentPrice: {
-    type: Number,
-    required: true,
-  },
-  priceHistory: [priceHistoryEntrySchema],
-  stock: {
-    type: Number,
-    required: true,
-    default: 1,
-  },
-  description: {
-    type: String,
-    required: true,
-  },
-  isActive: {
-    type: Boolean,
-    required: true,
-  },
-  imgUrl: {
-    type: String,
-  },
-});
+  { timestamps: true }
+);
 
 // Query middleware
 storeProductSchema.pre(/^find/, function (next) {
