@@ -3,7 +3,7 @@ import { authorize, protect } from "../middleware/authmiddleware";
 import {
   getSellerOrders,
   getSellerOrdersByProductId,
-} from "../controllers/orderControllers";
+} from "../controllers/orderControllers.js";
 import { startSale, stopSale } from "../controllers/storeProductController";
 
 const router = express.Routes();

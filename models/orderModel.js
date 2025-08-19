@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { addressSchema } from "./commonSchemas.js";
+import mongoosastic from "mongoosastic";
 
 const orderSchema = new mongoose.Schema(
   {
