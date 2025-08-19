@@ -55,6 +55,30 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+orderSchema.plugin(mongoosastic, {
+  es_host: "localhost",
+  es_port: 9200,
+
+  populate: [
+    {
+      path: "user",
+      select: "-password -age",
+    },
+    {
+      path: "seller",
+      select: "-password -age -sellerId",
+    },
+    {
+      path: "orderItems.product",
+      select: "description",
+      populate: {
+        path: "baseProduct",
+        select: "masterName masterCategoryName",
+      },
+    },
+  ],
+});
+
 const Order = mongoose.model("Order", orderSchema);
 
 export default Order;
