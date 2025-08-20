@@ -74,15 +74,7 @@ export const Seller = User.discriminator(
   })
 );
 
-export const Admin = User.discriminator(
-  "Admin",
-  new mongoose.Schema({
-    adminId: {
-      type: String,
-      unique: true,
-    },
-  })
-);
+export const Admin = User.discriminator("Admin", new mongoose.Schema({}));
 
 export const Customer = User.discriminator("Customer", new mongoose.Schema({}));
 export const Applicant = User.discriminator(

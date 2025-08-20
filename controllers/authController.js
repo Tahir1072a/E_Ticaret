@@ -140,3 +140,29 @@ export const sellerRegister = async (req, res) => {
     session.endSession();
   }
 };
+
+export const changePassword = async (req, res) => {
+  try {
+    const id = req.user._id;
+    const { oldPassword, newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({
+        message: "Lütfen uzunluğu en az 6 karakter olan bir şifre giriniz",
+      });
+    }
+
+    const currentUser = await User.findById(id).select("+password");
+    const isMatched = await bcrypt.compare(oldPassword, currentUser.password);
+
+    if (!isMatched) {
+      return res.status(400).json({ message: "Girdiğiniz şifre hatalı" });
+    }
+
+    currentUser.password = await createHash(newPassword);
+    await currentUser.save();
+    res.status(200).json({ message: "Şifreniz başarıyla değiştirilmiştir" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};

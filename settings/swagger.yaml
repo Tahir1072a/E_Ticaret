@@ -558,7 +558,7 @@ components:
           $ref: '#/components/schemas/PopulatedCart'
     RegisterUserInput:
       type: object
-      required: [email, username, password]
+      required: [email, username, password, name, surname]
       properties:
         email:
           type: string
@@ -569,6 +569,12 @@ components:
         password:
           type: string
           example: MyStrongPassword123
+        name:
+          type: string
+          example: "Ahmet"
+        surname:
+          type: string
+          example: "Yılmaz"
     LoginUserInput:
       type: object
       required: [email, password]

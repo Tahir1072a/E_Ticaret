@@ -1,6 +1,8 @@
 import { Seller, User } from "../models/usersModel.js";
 import Order from "../models/orderModel.js";
 import Coupon from "../models/couponModel.js";
+import bcrypt from "bcryptjs";
+import { createHash } from "./userController.js";
 
 export const getAllSeller = async (req, res) => {
   try {
@@ -166,7 +168,34 @@ export const openPackage = async (req, res) => {
 
     res.status(201).json({
       message: `Tebrikler! Bir paketi açtın ve ${randomPrize.description} kazandın!`,
+      data: newCoupon,
     });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const changePassword = async (req, res) => {
+  try {
+    const id = req.user._id;
+    const { oldPassword, newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({
+        message: "Lütfen uzunluğu en az 6 karakter olan bir şifre giriniz",
+      });
+    }
+
+    const currentUser = await User.findById(id).select("+password");
+    const isMatched = await bcrypt.compare(oldPassword, currentUser.password);
+
+    if (!isMatched) {
+      return res.status(400).json({ message: "Girdiğiniz şifre hatalı" });
+    }
+
+    currentUser.password = await createHash(newPassword);
+    await currentUser.save();
+    res.status(200).json({ message: "Şifreniz başarıyla değiştirilmiştir" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
