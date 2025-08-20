@@ -1,5 +1,6 @@
 import { User, Admin, Seller, Customer } from "../models/usersModel.js";
 import bcrypt from "bcryptjs";
+import APIFeatures from "../utils/apiFeatures.js";
 
 export async function createHash(password) {
   const salt = await bcrypt.genSalt(10);
@@ -55,15 +56,27 @@ export const createUser = async (req, res) => {
 
 export const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find({});
+    const features = new APIFeatures(User.find(), req.query)
+      .filter()
+      .sort()
+      .limitFields()
+      .paginate();
 
-    if (users.length == 0) {
-      return res
-        .status(404)
-        .json({ message: "Herhangi bir kayıtlı kullanıcı bulunamadı" });
-    }
+    const users = await features.query.populate({
+      path: "wishlist",
+      populate: {
+        path: "baseProduct",
+        select: "masterName masterCategory",
+      },
+    });
 
-    res.status(200).json(users);
+    res.status(200).json({
+      status: "success",
+      results: users.length,
+      data: {
+        users,
+      },
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

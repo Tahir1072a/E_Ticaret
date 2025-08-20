@@ -1,14 +1,26 @@
 import { StoreProduct } from "../models/storeProductModel.js";
 import { User } from "../models/usersModel.js";
+import APIFeatures from "../utils/apiFeatures.js";
 
 export const getAllPublicProducts = async (req, res) => {
   try {
-    const products = await StoreProduct.find({})
-      .populate("baseProduct", "masterName masterCategory")
-      .populate("seller", "storeName")
-      .lean();
+    const features = new APIFeatures(StoreProduct.find(), req.query)
+      .filter()
+      .sort()
+      .limitFields()
+      .paginate();
 
-    res.status(200).json(products);
+    const products = await features.query
+      .populate("seller", "storeName")
+      .populate("baseProduct", "masterName masterCategory");
+
+    res.status(200).json({
+      status: "success",
+      results: products.length,
+      data: {
+        products,
+      },
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
