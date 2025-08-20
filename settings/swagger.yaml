@@ -8,11 +8,11 @@ servers:
 
 tags:
   - name: PublicProducts
-    description: Herkese açık ürün kataloğu işlemleri
+    description: Herkese açık ürün kataloğu ve yorum işlemleri
   - name: Auth
-    description: Kullanıcı kimlik doğrulama işlemleri
+    description: Kullanıcı kimlik doğrulama ve şifre işlemleri
   - name: Customers
-    description: Müşteri işlemleri
+    description: Müşteri profil, sipariş ve favori işlemleri
   - name: BaseProducts
     description: Toptan ürün (Base Product) yönetimi
   - name: StoreProducts
@@ -24,7 +24,7 @@ tags:
   - name: AdminSellerApplications
     description: Admin — Satıcı başvuruları yönetimi
   - name: Orders
-    description: Müşteri sipariş işlemleri
+    description: Müşteri sipariş oluşturma ve ödeme işlemleri
   - name: Store
     description: Satıcının sipariş ve mağaza yönetimi işlemleri
   - name: Cart
@@ -78,12 +78,17 @@ components:
           type: string
           format: date-time
           example: "2025-08-13T12:21:00.000Z"
-        masterCategory:
+        masterCategoryNumber:
+          type: string
+          example: "CAT-01"
+        masterCategoryName:
           type: string
           example: "Ayakkabı"
         isActive:
           type: boolean
           default: true
+        masterImage:
+          type: string
     UpdateBaseProductInput:
       type: object
       properties:
@@ -161,6 +166,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ShippingAddress'
+        wishlist:
+          type: array
+          items:
+            type: string
+            description: "StoreProduct ObjectId"
         createdAt:
           type: string
           format: date-time
@@ -180,7 +190,7 @@ components:
               example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
     CreateUserInput:
       type: object
-      required: [email, username, password]
+      required: [email, username, password, name, surname]
       properties:
         name:
           type: string
@@ -340,6 +350,14 @@ components:
         isActive:
           type: boolean
           example: true
+        onSale:
+          type: boolean
+        salePrice:
+          type: number
+        rating:
+          type: number
+        numReviews:
+          type: integer
         imgUrl:
           type: string
           example: "http://example.com/images/shoe.jpg"
@@ -419,6 +437,8 @@ components:
           type: string
         user:
           type: string
+        seller:
+          type: string
         orderItems:
           type: array
           items:
@@ -436,6 +456,14 @@ components:
         paidAt:
           type: string
           format: date-time
+        isDelivered:
+          type: boolean
+          default: false
+        deliveredAt:
+          type: string
+          format: date-time
+        appliedCoupon:
+          type: string
         status:
           type: string
           example: Pending
@@ -454,6 +482,8 @@ components:
         _id:
           type: string
         user:
+          $ref: '#/components/schemas/PopulatedOrderUser'
+        seller:
           $ref: '#/components/schemas/PopulatedOrderUser'
         orderItems:
           type: array
@@ -495,6 +525,12 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CartItem"
+        subTotal:
+          type: number
+        total:
+          type: number
+        appliedCoupon:
+          type: string
     PopulatedCartItem:
       type: object
       properties:
@@ -648,25 +684,28 @@ components:
           $ref: "#/components/schemas/SellerShippingAddress"
     CouponInput:
       type: object
-      required: [code, discountType, discountValue]
+      required: [code, description, discountType, expiryDate]
       properties:
         code:
           type: string
           example: "SUMMER25"
+        description:
+          type: string
+          example: "Yaz indirimi"
         discountType:
           type: string
-          enum: [percentage, fixed]
+          enum: [percentage, fixedAmount]
           example: "percentage"
-        discountValue:
+        minPurchaseAmount:
           type: number
-          example: 25
-        maxUses:
-          type: integer
           example: 100
         expiryDate:
           type: string
           format: date-time
           example: "2025-09-22T23:59:59.000Z"
+        usageLimit:
+          type: integer
+          example: 100
     CouponResponse:
       type: object
       properties:
@@ -674,17 +713,19 @@ components:
           type: string
         code:
           type: string
+        description:
+          type: string
         discountType:
           type: string
-        discountValue:
+        minPurchaseAmount:
           type: number
-        maxUses:
-          type: integer
-        uses:
-          type: integer
         expiryDate:
           type: string
           format: date-time
+        usageLimit:
+          type: integer
+        timesUsed:
+          type: integer
         isActive:
           type: boolean
     ApplyCouponInput:
@@ -705,12 +746,91 @@ components:
           type: string
           format: date-time
           example: "2025-08-31T23:59:59.000Z"
+    Review:
+      type: object
+      properties:
+        _id:
+          type: string
+        comment:
+          type: string
+        rating:
+          type: number
+        user:
+          type: string
+        product:
+          type: string
+    CreateReviewInput:
+      type: object
+      required: [rating, comment]
+      properties:
+        rating:
+          type: number
+          example: 5
+        comment:
+          type: string
+          example: "Bu ürün harika!"
+    PopulatedReview:
+      type: object
+      properties:
+        _id:
+          type: string
+        comment:
+          type: string
+        rating:
+          type: number
+        user:
+          type: object
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+            surname:
+              type: string
+        product:
+          type: string
+    ChangePasswordInput:
+      type: object
+      required: [oldPassword, newPassword]
+      properties:
+        oldPassword:
+          type: string
+        newPassword:
+          type: string
+    ForgotPasswordInput:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+    ResetPasswordInput:
+      type: object
+      required: [password]
+      properties:
+        password:
+          type: string
 
 paths:
   /api/products:
     get:
       summary: Herkese açık tüm ürünleri listeler
       tags: [PublicProducts]
+      parameters:
+        - name: sort
+          in: query
+          description: Sıralama kriteri (örn: -price, name)
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Sayfa numarası
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          description: Sayfa başına ürün sayısı
+          schema:
+            type: integer
       responses:
         '200':
           description: Ürünlerin listesi
@@ -794,6 +914,63 @@ paths:
           description: Bu isimde bir mağaza bulunamadı
         '500':
           description: Sunucu hatası
+  
+  /api/products/{productId}/reviews:
+    get:
+      summary: Bir ürüne ait tüm yorumları listeler
+      tags: [PublicProducts]
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Yorumların listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PopulatedReview'
+        '500':
+          description: Sunucu hatası
+    post:
+      summary: Bir ürüne yeni bir yorum ekler
+      description: "Kullanıcının satın aldığı bir ürüne yorum yapmasını sağlar. Daha önce yorum yapılmışsa veya ürün satın alınmamışsa hata döner."
+      tags: [PublicProducts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReviewInput'
+      responses:
+        '201':
+          description: Yorum başarıyla eklendi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '400':
+          description: Bu ürünü zaten yorumladınız.
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Sadece satın aldığınız ürünlere yorum yapabilirsiniz.
+        '404':
+          description: Yorum yapılacak ürün bulunamadı.
+        '500':
+          description: Sunucu hatası.
   
   /api/register:
     post:
@@ -887,6 +1064,68 @@ paths:
         '500':
           description: Sunucu hatası
   
+  /api/change-password:
+    patch:
+      summary: Kullanıcının şifresini değiştirir
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordInput'
+      responses:
+        '200':
+          description: Şifre başarıyla değiştirildi.
+        '400':
+          description: Eski şifre hatalı veya yeni şifre geçersiz.
+        '401':
+          description: Yetkisiz.
+        '500':
+          description: Sunucu hatası.
+
+  /api/forgot-password:
+    post:
+      summary: Şifre sıfırlama talebi gönderir
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordInput'
+      responses:
+        '200':
+          description: Talep işleme alındı.
+        '500':
+          description: Sunucu hatası.
+
+  /api/reset-password/{token}:
+    patch:
+      summary: Şifreyi sıfırlama anahtarı ile günceller
+      tags: [Auth]
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordInput'
+      responses:
+        '200':
+          description: Şifre başarıyla güncellendi.
+        '400':
+          description: Geçersiz veya süresi dolmuş anahtar.
+        '500':
+          description: Sunucu hatası.
+
   /api/customers:
     delete:
       summary: Müşteri Hesabını Sil (Pasif Yap)
@@ -1026,14 +1265,80 @@ paths:
 
   /api/customers/open-package:
     post:
-      summary: Müşterinin paket açma işlemi
-      description: "Bu uç nokta, müşterinin bir paketi açtığını simüle eder. (İş mantığına göre detaylandırılmalıdır)."
+      summary: Müşterinin paket açma işlemi (Hediye Kupon Kazanma)
+      description: "Bu uç nokta, müşterinin bir paketi açtığını simüle ederek rastgele bir hediye kuponu kazanmasını sağlar."
+      tags: [Customers]
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Kupon başarıyla oluşturuldu ve kullanıcıya atandı.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CouponResponse'
+        '401':
+          description: Yetkisiz.
+        '500':
+          description: Sunucu hatası.
+
+  /api/customers/wishlist:
+    get:
+      summary: Müşterinin favori ürün listesini getirir
       tags: [Customers]
       security:
         - bearerAuth: []
       responses:
         '200':
-          description: İşlem başarılı.
+          description: Favori ürün listesi.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StoreProductResponse'
+        '401':
+          description: Yetkisiz.
+        '500':
+          description: Sunucu hatası.
+    post:
+      summary: Favori listesine ürün ekler
+      tags: [Customers]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId]
+              properties:
+                productId:
+                  type: string
+      responses:
+        '200':
+          description: Ürün favorilere eklendi.
+        '401':
+          description: Yetkisiz.
+        '500':
+          description: Sunucu hatası.
+
+  /api/customers/wishlist/{productId}:
+    delete:
+      summary: Favori listesinden ürün kaldırır
+      tags: [Customers]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ürün favorilerden kaldırıldı.
         '401':
           description: Yetkisiz.
         '500':
