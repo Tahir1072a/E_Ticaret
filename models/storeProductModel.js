@@ -39,8 +39,13 @@ const storeProductSchema = new mongoose.Schema(
     salePrice: {
       type: Number,
     },
-    imgUrl: {
-      type: String,
+    rating: {
+      type: Number,
+      default: 0,
+    },
+    numReviews: {
+      type: Number,
+      default: 0,
     },
   },
   { timestamps: true }

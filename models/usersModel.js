@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { Mongoose } from "mongoose";
 import { addressSchema } from "./commonSchemas.js";
 import mongoosastic from "mongoosastic";
 
@@ -32,6 +32,18 @@ const userSchema = new mongoose.Schema(
       type: Number,
     },
     shippingAddresses: [addressSchema],
+    wishlist: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "StoreProduct",
+      },
+    ],
+    passwordResetToken: {
+      type: String,
+    },
+    passwordResetExpires: {
+      type: Date,
+    },
     role: {
       type: String,
       required: true,

@@ -1,8 +1,6 @@
 import { Seller, User } from "../models/usersModel.js";
 import Order from "../models/orderModel.js";
 import Coupon from "../models/couponModel.js";
-import bcrypt from "bcryptjs";
-import { createHash } from "./userController.js";
 
 export const getAllSeller = async (req, res) => {
   try {
@@ -175,27 +173,59 @@ export const openPackage = async (req, res) => {
   }
 };
 
-export const changePassword = async (req, res) => {
+export const getWishlist = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id)
+      .populate({
+        path: "wishlist",
+        populate: {
+          path: "baseProduct",
+          select: "masterName",
+        },
+      })
+      .lean();
+
+    res.status(200).json(user.wishlist);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const addToWishlist = async (req, res) => {
   try {
     const id = req.user._id;
-    const { oldPassword, newPassword } = req.body;
+    const { productId } = req.body;
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      {
+        $addToSet: { wishlist: productId },
+      },
+      { new: true }
+    );
 
-    if (!newPassword || newPassword.length < 6) {
-      return res.status(400).json({
-        message: "Lütfen uzunluğu en az 6 karakter olan bir şifre giriniz",
-      });
-    }
+    res
+      .status(200)
+      .json({ message: "Ürün favorilere eklendi", data: updatedUser.wishlist });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
 
-    const currentUser = await User.findById(id).select("+password");
-    const isMatched = await bcrypt.compare(oldPassword, currentUser.password);
+export const removeFromWishlist = async (req, res) => {
+  try {
+    const id = req.user._id;
+    const { productId } = req.params;
 
-    if (!isMatched) {
-      return res.status(400).json({ message: "Girdiğiniz şifre hatalı" });
-    }
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      { $pull: { wishlist: productId } },
+      { new: true }
+    );
 
-    currentUser.password = await createHash(newPassword);
-    await currentUser.save();
-    res.status(200).json({ message: "Şifreniz başarıyla değiştirilmiştir" });
+    res.status(200).json({
+      message: "Ürün favorilerden kaldırıldı.",
+      data: updatedUser.wishlist,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

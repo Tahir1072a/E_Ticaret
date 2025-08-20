@@ -6,8 +6,10 @@ import {
   getBaseProductByName,
   updateBaseProductById,
   importFromExternalAPI,
+  uploadBaseProductImage,
 } from "../controllers/baseProductController.js";
 import { protect, authorize } from "../middleware/authmiddleware.js";
+import upload from "../utils/upload.js";
 
 const router = express.Router();
 
@@ -26,5 +28,12 @@ router.get("/name/:name", authorize("Seller", "Admin"), getBaseProductByName);
 router.put("/", authorize("Admin"), updateBaseProductById);
 
 router.get("/:id", authorize("Seller", "Admin"), getBaseProductById);
+
+router.put(
+  "/:id/image",
+  authorize("admin"),
+  upload.single("productImage"),
+  uploadBaseProductImage
+);
 
 export default router;

@@ -22,6 +22,7 @@ import YAML from "yamljs";
 const app = express();
 
 app.use(express.json());
+app.use(express.static("public"));
 
 app.use(cors()); // Tüm corslara izin ver...
 

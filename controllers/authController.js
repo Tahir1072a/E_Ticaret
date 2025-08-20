@@ -166,3 +166,91 @@ export const changePassword = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email: email });
+    if (!user) {
+      return res.status(200).json({
+        message:
+          "E posta adresiniz sisteme kayıtlıysa, bağlantı gönderildi _er!",
+      });
+    }
+
+    const resetToken = crypto.randomBytes(32).toString("hex");
+
+    user.passwordResetToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+
+    user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 dakika
+
+    await user.save();
+
+    // Simülasyon
+    const resetURL = `${req.protocol}://${req.get(
+      "host"
+    )}/api/auth/reset-password/${resetToken}`;
+    console.log("----------------------------------------------");
+    console.log("Şifre sıfırlama linki (E-POSTA SİMÜLASYONU");
+    console.log("----------------------------------------------");
+    console.log(resetURL);
+    // Gerçeğe dair bir örnek
+    // await sendEmail({ email: user.email, subject: 'Şifre Sıfırlama', message: `Şifrenizi sıfırlamak için lütfen bu linke tıklayın: ${resetURL}` });
+
+    res.status(200).json({
+      message:
+        "Eğer e-posta adresiniz sistemimizde kayıtlı ise, şifre sıfırlama bağlantısı gönderilmiştir. ",
+    });
+  } catch (err) {
+    // Bilgi sızdırmamak için hata arka planda loglanır.
+    console.error("FORGOT PASSWORD ERROR:", err);
+    res
+      .status(500)
+      .json({ message: "Bir hata oluştu, lütfen tekrar deneyin." });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  try {
+    const resetToken = req.params.token;
+
+    const hashedToken = crpyto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+
+    const user = await User.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        message:
+          "Şifre sıfırlama anahtarını süresi dolmuştur. Lütfen tekrar deneyiniz.",
+      });
+    }
+
+    const { password } = req.body;
+
+    if (!password || password.length < 6) {
+      return res
+        .status(400)
+        .json({ message: "Yeni şifre en az 6 karakterden oluşmalıdır" });
+    }
+
+    user.password = await createHash(password);
+
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+
+    await user.save();
+
+    res.status(200).json({ message: "Şifreniz başarıyla güncellenmiştir." });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};

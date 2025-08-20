@@ -8,6 +8,9 @@ import {
   getCustomerOrders,
   getCustomerOrderById,
   openPackage,
+  getWishlist,
+  addToWishlist,
+  removeFromWishlist,
 } from "../controllers/customerController.js";
 
 const router = express.Router();
@@ -21,5 +24,8 @@ router.get("/sellers", getAllSeller);
 router.get("/adresses", getAllAdresses);
 router.get("/orders", getCustomerOrders);
 router.get("/orders/:id", getCustomerOrderById);
+router.get("/wishlist", getWishlist);
+router.post("/wishlist", addToWishlist);
+router.delete("/wishlist/:productId", removeFromWishlist);
 
 export default router;

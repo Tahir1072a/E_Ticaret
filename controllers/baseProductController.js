@@ -198,3 +198,31 @@ export const importFromExternalAPI = async (req, res) => {
     });
   }
 };
+
+export const uploadBaseProductImage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const product = await BaseProduct.findById(id);
+
+    if (!product) {
+      return res.status(404).json({ message: "Ürün bulunamadı" });
+    }
+    if (!req.file) {
+      return res
+        .status(400)
+        .json({ message: "Lütfen bir resim dosyası seçin" });
+    }
+
+    product.masterImage = `/uploads/${req.file.filename}`;
+
+    const updateProduct = await product.save();
+    res
+      .status(200)
+      .json({
+        message: "Ürün resmi başarıyla güncellendi",
+        data: updateProduct,
+      });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};

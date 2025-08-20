@@ -38,6 +38,9 @@ const baseProductSchema = new mongoose.Schema({
     required: true,
     default: true,
   },
+  masterImage: {
+    type: String,
+  },
 });
 
 baseProductSchema.pre(/^find/, function (next) {
