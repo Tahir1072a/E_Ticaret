@@ -4,6 +4,7 @@ import { User } from "../models/usersModel.js";
 import { createHash } from "./userController.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 
 export const loginUser = async (req, res) => {
   try {
@@ -192,7 +193,7 @@ export const forgotPassword = async (req, res) => {
     // Simülasyon
     const resetURL = `${req.protocol}://${req.get(
       "host"
-    )}/api/auth/reset-password/${resetToken}`;
+    )}/api/reset-password/${resetToken}`;
     console.log("----------------------------------------------");
     console.log("Şifre sıfırlama linki (E-POSTA SİMÜLASYONU");
     console.log("----------------------------------------------");
@@ -216,8 +217,8 @@ export const forgotPassword = async (req, res) => {
 export const resetPassword = async (req, res) => {
   try {
     const resetToken = req.params.token;
-
-    const hashedToken = crpyto
+    console.log(resetToken);
+    const hashedToken = crypto
       .createHash("sha256")
       .update(resetToken)
       .digest("hex");
