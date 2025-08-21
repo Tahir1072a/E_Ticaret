@@ -39,13 +39,28 @@ export const createApplication = async (req, res) => {
   }
 };
 
-export const getPendingApplications = async (req, res) => {
+export const getApplicationsByStatus = async (req, res) => {
   try {
-    const applications = await SellerApplication.find({
-      status: "pending",
-    }).populate("user", "name email username");
+    const { status } = req.params;
 
-    res.status(201).json(applications);
+    const filter = {};
+
+    const allowedStatuses = ["pending", "approved", "rejected"];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        message:
+          "Geçersiz durum (status) parametresi. Sadece pending, rejected veya approved olabilir.",
+      });
+    }
+
+    filter.status = status;
+
+    const applications = await SellerApplication.find(filter).populate(
+      "user",
+      "name email username"
+    );
+
+    res.status(200).json(applications);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -113,23 +128,19 @@ export const updateApplicationStatus = async (req, res) => {
     }
 
     if (status === "approved") {
-      const userToUpgrade = await User.findById(application.user).session(
-        session
-      );
+      const userToUpgrade = await User.findById(application.user)
+        .select("+password")
+        .session(session);
 
       if (!userToUpgrade) {
         throw new Error("Başvuruya ait kullanıcı sistemde bulunamadı.");
       }
 
       const payload = {
-        name: userToUpgrade.name,
-        surname: userToUpgrade.surname,
-        username: userToUpgrade.username,
-        email: userToUpgrade.email,
-        password: userToUpgrade.password,
+        ...userToUpgrade.toObject(),
+        _id: undefined,
         role: "Seller",
         storeName: application.storeName,
-        sellerId: uuidv4(),
       };
 
       await Seller.create([payload], { session });
@@ -137,9 +148,9 @@ export const updateApplicationStatus = async (req, res) => {
     } else if (status === "rejected") {
       await User.findByIdAndDelete(application.user).session(session);
     }
+
     application.status = status;
     await application.save({ session });
-
     await session.commitTransaction();
 
     res.status(200).json({

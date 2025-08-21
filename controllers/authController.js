@@ -76,7 +76,11 @@ export const registerUser = async (req, res) => {
     );
     res
       .status(201)
-      .json({ message: "Kullanıcı başarıyla kaydedildi", token: token });
+      .json({
+        message: "Kullanıcı başarıyla kaydedildi",
+        token: token,
+        role: newUser.role,
+      });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }

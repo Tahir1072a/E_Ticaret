@@ -78,11 +78,6 @@ export const Seller = User.discriminator(
       type: String,
       required: true,
     },
-    sellerId: {
-      type: String,
-      required: true,
-      unique: true,
-    },
   })
 );
 

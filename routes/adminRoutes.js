@@ -1,9 +1,9 @@
 import express from "express";
 import {
-  getPendingApplications,
   getAllApplications,
   updateApplicationStatus,
   deleteApplicationById,
+  getApplicationsByStatus,
 } from "../controllers/sellerApplicationController.js";
 import { protect, authorize } from "../middleware/authmiddleware.js";
 
@@ -11,9 +11,9 @@ const router = express.Router();
 
 router.use(protect, authorize("Admin"));
 
-router.get("/seller-applications/pending", getPendingApplications);
+router.get("/seller-applications/:status", getApplicationsByStatus);
 
-router.get("/seller-applications/all", getAllApplications);
+router.get("/seller-applications", getAllApplications);
 
 router.put("/seller-applications/:id/status", updateApplicationStatus);
 

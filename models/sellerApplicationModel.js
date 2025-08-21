@@ -10,7 +10,6 @@ const sellerApplicationSchema = new mongoose.Schema(
     storeName: {
       type: String,
       required: [true, "Lütfen bir mağaza adını giriniz"],
-      unique: true,
     },
     shippingAddress: {
       address: { type: String, required: true },
