@@ -27,5 +27,6 @@ router.get("/orders/:id", getCustomerOrderById);
 router.get("/wishlist", getWishlist);
 router.post("/wishlist", addToWishlist);
 router.delete("/wishlist/:productId", removeFromWishlist);
+router.post("/:productId/reviews", protect, createReview);
 
 export default router;
