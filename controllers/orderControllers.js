@@ -17,23 +17,18 @@ export const createOrder = async (req, res) => {
       } else {
         return res.status(404).json({
           message:
-            "Teslimat adresi zorunlduur. Lütfen teslimat için bir adres giriniz.",
+            "Teslimat adresi zorunludur. Lütfen teslimat için bir adres giriniz.",
         });
       }
     }
 
-    const cart = await Cart.findOne({ user: userId });
+    const cart = await Cart.findOne({ user: userId }).lean();
     if (!cart || cart.items.length == 0) {
       return res.status(404).json({
         message:
           "Sipariş vermek için lütfen öncelikle sepete bir ürün ekleyiniz.",
       });
     }
-
-    const totalPrice = cart.items.reduce(
-      (acc, item) => acc + item.quantity * item.price,
-      0
-    );
 
     const order = new Order({
       user: userId,
@@ -53,6 +48,38 @@ export const createOrder = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+};
+
+export const deleteOrder = async (req, res) => {
+  try {
+    const { id: orderId } = req.params;
+
+    if (!orderId)
+      return res.status(400).json({
+        message: "Lütfen cancel edilen order'ın id değerini gönderiniz.",
+      });
+
+    const canceledOrder = await Order.findByIdAndUpdate(
+      orderId,
+      {
+        isCanceled: true,
+      },
+      { new: true }
+    );
+
+    if (!canceledOrder) {
+      return res
+        .status(404)
+        .json({ message: "Silmek istediğiniz sipariş bulunamamıştır" });
+    }
+
+    return res.status(200).json({
+      message: "İlgili order başarıyla güncellendi",
+      data: canceledOrder,
+    });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
   }
 };
 
@@ -79,7 +106,7 @@ export const confirmPayment = async (req, res) => {
       );
     }
 
-    for (const item of order.orederItems) {
+    for (const item of order.orderItems) {
       await StoreProduct.findByIdAndUpdate(
         item.product,
         { $inc: { stock: -item.quantity } },
@@ -138,7 +165,7 @@ export const getSellerOrdersByProductId = async (req, res) => {
 
     const orders = await Order.find({
       "orderItems.product": Id,
-      seller: sellerId,
+      user: sellerId,
     })
       .populate("user", "name email")
       .sort({ createdAt: -1 });

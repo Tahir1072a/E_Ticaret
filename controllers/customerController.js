@@ -42,23 +42,47 @@ export const getAllAdresses = async (req, res) => {
   }
 };
 
+export const getCustomerAddressById = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        message: "Lütfen istediğiniz adresin id değerini getiriniz! ",
+      });
+    }
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "Kullanıcı bulunamadı" });
+    }
+
+    const customerAddress = user.shippingAddresses.id(id);
+
+    if (!customerAddress) {
+      return res.status(404).json({ message: "Adres bulunamadı." });
+    }
+
+    res.status(200).json(customerAddress);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 export const updateCustomer = async (req, res) => {
   try {
     const id = req.user._id;
-    const { shippingAddresses, ...customerData } = req.body;
+    const { ...customerData } = req.body;
 
-    const customerPayload = { $set: customerData };
-    if (shippingAddress && shippingAddress.address) {
-      customerPayload.$push = {
-        shippingAddresses: {
-          ...shippingAddresses,
-        },
-      };
-    }
-
-    const updatedCustomer = await User.findOneAndUpdate(id, customerPayload, {
-      new: true,
-    }).lean();
+    const updatedCustomer = await User.findOneAndUpdate(
+      id,
+      { $set: customerData },
+      {
+        new: true,
+      }
+    ).lean();
 
     if (!updatedCustomer) {
       return res.status(404).json({ message: "Kullanıcı bulunamadı." });
@@ -73,14 +97,138 @@ export const updateCustomer = async (req, res) => {
   }
 };
 
+export const addCustomerAddress = async (req, res) => {
+  try {
+    const id = req.user._id;
+    const { shippingAddress } = req.body;
+
+    if (!shippingAddress)
+      return res
+        .status(404)
+        .json({ message: "Lütfen eklemek için bir adres bilgisi gönderiniz." });
+
+    const updatedCustomerData = await User.findByIdAndUpdate(
+      id,
+      {
+        $push: { shippingAddresses: shippingAddress },
+      },
+      { new: true }
+    );
+
+    if (!updatedCustomerData)
+      return res.status(404).json({ message: "Kullanıcı bulunamadı." });
+
+    res.status(200).json({
+      message: "Customer başarıyla güncellenmiştir.",
+      data: updatedCustomerData,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const deleteCustomerAddress = async (req, res) => {
+  try {
+    const id = req.user._id;
+    const { id: addressId } = req.params;
+
+    if (!addressId)
+      return res.status(404).json({ message: "Adress ID si belirtilmedi." });
+
+    const deletedAdress = await User.findByIdAndUpdate(
+      id,
+      {
+        $pull: { shippingAddresses: { _id: addressId } },
+      },
+      { new: true }
+    );
+
+    if (!deletedAdress) {
+      return res.status(404).json({ message: "Kullanıcı bulunamadı." });
+    }
+
+    res.status(200).json({
+      message: "Kullanıcı bulunamadı",
+      data: deletedAdress.shippingAddresses,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const deleteMultipleCustomerAddresses = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { ids } = req.params;
+
+    if ((!ids && !Array.isArray(ids)) || ids.length === 0) {
+      return res.status(400).json({
+        message:
+          "Lütfen silinecek adreslerin id değerlerini bir dizi olarak return ediniz",
+      });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        $pull: { shippingAddresses: { _id: { $in: ids } } },
+      },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "Kullanıcı bulunamadı" });
+    }
+
+    res.status(200).json({
+      message: "Seçilen adresler başarıyla silinmiştir",
+      data: updatedUser,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const updateCustomerAddress = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { id } = req.params;
+    const updateAddress = req.body;
+
+    if (!id)
+      return res.status(400).json({
+        message: "Lütfen güncellenmesini istediğiniz adresi seçiniz.",
+      });
+
+    const result = await User.updateOne(
+      { _id: userId, "shippingAddresses._id": id },
+      {
+        $set: { "shippingAddresses.$": { _id: id, ...updateAddress } },
+      },
+      { new: true }
+    );
+
+    if (result.nModified === 0) {
+      return res
+        .status(400)
+        .json({ message: "Kullanıcı veya belirtilen adres bulunamadı" });
+    }
+
+    return res
+      .status(200)
+      .json({ message: "Kullanıcı adresleri başarıyla güncellenmiştir" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 export const getCustomerOrders = async (req, res) => {
   try {
     const id = req.user._id;
 
     const orders = await Order.find({ user: id })
       .select("orderItems")
-      .populate("user", "email name")
-      .populate("seller", "email name");
+      .populate("user", "email name");
 
     res.status(200).json(orders);
   } catch (err) {
@@ -95,7 +243,6 @@ export const getCustomerOrderById = async (req, res) => {
 
     const orderDetail = await Order.findOne({ _id: id, user: userId })
       .populate("user")
-      .populate("seller")
       .populate({
         path: "orderItems.product",
       });

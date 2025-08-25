@@ -20,6 +20,7 @@ export const priceHistoryEntrySchema = new mongoose.Schema(
 );
 
 export const addressSchema = new mongoose.Schema({
+  name: { type: String },
   address: { type: String },
   city: { type: String },
   country: { type: String },

@@ -74,13 +74,11 @@ export const registerUser = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "12h" }
     );
-    res
-      .status(201)
-      .json({
-        message: "Kullanıcı başarıyla kaydedildi",
-        token: token,
-        role: newUser.role,
-      });
+    res.status(201).json({
+      message: "Kullanıcı başarıyla kaydedildi",
+      token: token,
+      role: newUser.role,
+    });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
@@ -176,6 +174,7 @@ export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email: email });
+
     if (!user) {
       return res.status(200).json({
         message:
@@ -184,7 +183,7 @@ export const forgotPassword = async (req, res) => {
     }
 
     const resetToken = crypto.randomBytes(32).toString("hex");
-
+    console.log(user);
     user.passwordResetToken = crypto
       .createHash("sha256")
       .update(resetToken)
@@ -208,6 +207,7 @@ export const forgotPassword = async (req, res) => {
     res.status(200).json({
       message:
         "Eğer e-posta adresiniz sistemimizde kayıtlı ise, şifre sıfırlama bağlantısı gönderilmiştir. ",
+      token: resetToken,
     });
   } catch (err) {
     // Bilgi sızdırmamak için hata arka planda loglanır.

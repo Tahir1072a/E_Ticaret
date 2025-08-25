@@ -4,7 +4,7 @@ import { protect, authorize } from "../middleware/authmiddleware.js";
 
 const router = express.Router();
 
-router.use(protect, authorize("admin", "seller"));
+router.use(protect, authorize("admin"));
 
 router.post("/", createCoupon);
 

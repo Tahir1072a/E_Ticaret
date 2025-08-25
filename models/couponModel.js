@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const couponSchema = new mongoose.Schema(
+const masterCouponSchema = new mongoose.Schema(
   {
     code: {
       type: String,
@@ -40,7 +40,7 @@ const couponSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    targetUsers: [
+    usedUsers: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
@@ -54,6 +54,6 @@ const couponSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const Coupon = mongoose.model("Coupon", couponSchema);
+const Coupon = mongoose.model("Coupon", masterCouponSchema);
 
 export default Coupon;

@@ -12,7 +12,7 @@ tags:
   - name: Auth
     description: Kullanıcı kimlik doğrulama ve şifre işlemleri
   - name: Customers
-    description: Müşteri profil, sipariş ve favori işlemleri
+    description: Müşteri profil, adres, sipariş ve favori işlemleri
   - name: BaseProducts
     description: Toptan ürün (Base Product) yönetimi
   - name: StoreProducts
@@ -238,8 +238,6 @@ components:
           type: string
         email:
           type: string
-        shippingAddresses:
-          $ref: '#/components/schemas/ShippingAddress'
     UserAddressesResponse:
       type: object
       properties:
@@ -842,7 +840,6 @@ paths:
                   $ref: '#/components/schemas/PublicProductResponse'
         '500':
           description: Sunucu hatası
-  
   /api/products/{id}:
     get:
       summary: ID'ye göre herkese açık bir ürün getirir
@@ -864,7 +861,6 @@ paths:
           description: Ürün bulunamadı
         '500':
           description: Sunucu hatası
-
   /api/products/category/{category}:
     get:
       summary: Kategoriye göre herkese açık ürünleri listeler
@@ -889,7 +885,6 @@ paths:
           description: Bu kategoriye ait ürün bulunamadı
         '500':
           description: Sunucu hatası
-
   /api/products/store-name/{storeName}:
     get:
       summary: Mağaza adına göre herkese açık ürünleri listeler
@@ -914,7 +909,6 @@ paths:
           description: Bu isimde bir mağaza bulunamadı
         '500':
           description: Sunucu hatası
-  
   /api/products/{productId}/reviews:
     get:
       summary: Bir ürüne ait tüm yorumları listeler
@@ -971,7 +965,6 @@ paths:
           description: Yorum yapılacak ürün bulunamadı.
         '500':
           description: Sunucu hatası.
-  
   /api/register:
     post:
       summary: Yeni müşteri kaydı oluşturur
@@ -1063,7 +1056,6 @@ paths:
           description: Bu kullanıcı zaten sisteme kayıtlıdır.
         '500':
           description: Sunucu hatası
-  
   /api/change-password:
     patch:
       summary: Kullanıcının şifresini değiştirir
@@ -1085,7 +1077,6 @@ paths:
           description: Yetkisiz.
         '500':
           description: Sunucu hatası.
-
   /api/forgot-password:
     post:
       summary: Şifre sıfırlama talebi gönderir
@@ -1101,7 +1092,6 @@ paths:
           description: Talep işleme alındı.
         '500':
           description: Sunucu hatası.
-
   /api/reset-password/{token}:
     patch:
       summary: Şifreyi sıfırlama anahtarı ile günceller
@@ -1125,7 +1115,6 @@ paths:
           description: Geçersiz veya süresi dolmuş anahtar.
         '500':
           description: Sunucu hatası.
-
   /api/customers:
     delete:
       summary: Müşteri Hesabını Sil (Pasif Yap)
@@ -1140,7 +1129,6 @@ paths:
           description: Yetkisiz.
         '500':
           description: Sunucu hatası.
-  
   /api/customers/sellers:
     get:
       summary: Tüm satıcıları listeler
@@ -1161,8 +1149,7 @@ paths:
           description: Yetkisiz.
         '500':
           description: Sunucu hatası.
-
-  /api/customers/adresses:
+  /api/customers/addresses:
     get:
       summary: Müşterinin Kayıtlı Adreslerini Getir
       description: "Giriş yapmış kullanıcının profilindeki tüm kayıtlı kargo adreslerini listeler."
@@ -1182,11 +1169,135 @@ paths:
           description: Kayıtlı adres bulunamadı.
         '500':
           description: Sunucu hatası.
-
+    post:
+      summary: Müşterinin profiline yeni bir kargo adresi ekler
+      tags: [Customers]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [shippingAddress]
+              properties:
+                shippingAddress:
+                  $ref: '#/components/schemas/ShippingAddress'
+      responses:
+        '200':
+          description: Adres başarıyla eklendi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Adres bilgisi gönderilmedi.
+        '401':
+          description: Yetkisiz.
+        '404':
+          description: Kullanıcı bulunamadı.
+        '500':
+          description: Sunucu hatası.
+  /api/customers/addresses/delete-multiple:
+    delete:
+      summary: Müşterinin birden fazla kargo adresini siler
+      tags: [Customers]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [addressIds]
+              properties:
+                addressIds:
+                  type: array
+                  items:
+                    type: string
+                  description: Silinecek adreslerin ID'lerini içeren dizi.
+                  example: ["66c0a1b1d2e3f4a5b6c7d8e9", "66c0a1b1d2e3f4a5b6c7d8f0"]
+      responses:
+        '200':
+          description: Adresler başarıyla silindi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Geçersiz istek, adres ID'leri gönderilmedi.
+        '401':
+          description: Yetkisiz.
+        '404':
+          description: Kullanıcı bulunamadı.
+        '500':
+          description: Sunucu hatası.
+  /api/customers/addresses/{id}:
+    put:
+      summary: Müşterinin belirli bir kargo adresini günceller
+      tags: [Customers]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Güncellenecek adresin ID'si
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShippingAddress'
+      responses:
+        '200':
+          description: Adres başarıyla güncellendi.
+        '400':
+          description: Kullanıcı veya belirtilen adres bulunamadı.
+        '401':
+          description: Yetkisiz.
+        '500':
+          description: Sunucu hatası.
+    delete:
+      summary: Müşterinin belirli bir kargo adresini siler
+      tags: [Customers]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Silinecek adresin ID'si
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Adres başarıyla silindi.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ShippingAddress'
+        '401':
+          description: Yetkisiz.
+        '404':
+          description: Kullanıcı bulunamadı.
+        '500':
+          description: Sunucu hatası.
   /api/customers/update:
     put:
       summary: Müşteri Bilgilerini Güncelle
-      description: "Giriş yapmış kullanıcının kendi profil bilgilerini (ad, e-posta vb.) güncellemesini veya yeni bir kargo adresi eklemesini sağlar."
+      description: "Giriş yapmış kullanıcının kendi profil bilgilerini (ad, e-posta vb.) güncellemesini sağlar."
       tags: [Customers]
       security:
         - bearerAuth: []
@@ -1214,7 +1325,6 @@ paths:
           description: Kullanıcı bulunamadı.
         '500':
           description: Sunucu hatası.
-
   /api/customers/orders:
     get:
       summary: Müşterinin Siparişlerini Listele
@@ -1235,7 +1345,6 @@ paths:
           description: Yetkisiz.
         '500':
           description: Sunucu hatası.
-
   /api/customers/orders/{id}:
     get:
       summary: Müşterinin Belirli Bir Siparişini Getir
@@ -1262,7 +1371,6 @@ paths:
           description: Sipariş bulunamadı.
         '500':
           description: Sunucu hatası.
-
   /api/customers/open-package:
     post:
       summary: Müşterinin paket açma işlemi (Hediye Kupon Kazanma)
@@ -1281,7 +1389,6 @@ paths:
           description: Yetkisiz.
         '500':
           description: Sunucu hatası.
-
   /api/customers/wishlist:
     get:
       summary: Müşterinin favori ürün listesini getirir
@@ -1323,7 +1430,6 @@ paths:
           description: Yetkisiz.
         '500':
           description: Sunucu hatası.
-
   /api/customers/wishlist/{productId}:
     delete:
       summary: Favori listesinden ürün kaldırır
@@ -1343,7 +1449,6 @@ paths:
           description: Yetkisiz.
         '500':
           description: Sunucu hatası.
-  
   /api/coupons:
     post:
       summary: Yeni bir indirim kuponu oluşturur
@@ -1372,7 +1477,6 @@ paths:
           description: Erişim yok (rol).
         '500':
           description: Sunucu hatası.
-
   /api/search/base-products:
     get:
       summary: Toptan ürünlerde arama yapar
@@ -1395,7 +1499,6 @@ paths:
                   $ref: '#/components/schemas/BaseProduct'
         '500':
           description: Sunucu hatası.
-
   /api/search/store-products:
     get:
       summary: Mağaza ürünlerinde arama yapar
@@ -1418,7 +1521,6 @@ paths:
                   $ref: '#/components/schemas/PublicProductResponse'
         '500':
           description: Sunucu hatası.
-
   /api/search/users:
     get:
       summary: Kullanıcılarda arama yapar (Admin)
@@ -1447,7 +1549,6 @@ paths:
           description: Erişim yok (rol).
         '500':
           description: Sunucu hatası.
-
   /api/wholesale:
     post:
       summary: Yeni bir base product oluşturur
@@ -1518,7 +1619,6 @@ paths:
           description: Kimlik doğrulama başarısız.
         "403":
           description: Bu işlem için yetki yok.
-
   /api/wholesale/import:
     get:
       summary: Harici API'den toptan ürünleri içe aktarır
@@ -1549,7 +1649,6 @@ paths:
           description: Harici kaynaktan ürün bulunamadı.
         '500':
           description: Sunucu hatası.
-  
   /api/wholesale/{id}:
     get:
       summary: ID'ye göre bir base product getirir
@@ -1634,7 +1733,6 @@ paths:
           description: Ürün bulunamadı.
         '500':
           description: Sunucu hatası.
-
   /api/wholesale/name/{masterName}:
     get:
       summary: Ada göre bir base product getirir
@@ -1663,7 +1761,6 @@ paths:
           description: Ürün bulunamadı.
         '500':
           description: Sunucu hatası.
-
   /api/store-products:
     post:
       summary: Mağazaya yeni ürün ekle
@@ -1717,7 +1814,6 @@ paths:
           description: Hiçbir ürün bulunamadı.
         '500':
           description: Sunucu hatası.
-
   /api/store-products/{id}:
     get:
       summary: Mağazadaki bir ürünü ID ile getir
@@ -1813,7 +1909,6 @@ paths:
           description: Ürün bulunamadı veya satıcıya ait değil.
         '500':
           description: Sunucu hatası.
-  
   /api/store-products/stock/{id}:
     patch:
       summary: Mağazadaki bir ürünün stoğunu güncelle
@@ -1855,7 +1950,6 @@ paths:
           description: Ürün bulunamadı veya satıcıya ait değil.
         '500':
           description: Sunucu hatası.
-
   /api/store-products/name/{name}:
     get:
       summary: Mağazadaki bir ürünü ana ürün adına göre getir
@@ -1870,7 +1964,7 @@ paths:
           description: Aranan ana ürünün adı
           schema:
             type: string
-            example: "Deri Spor Ayakkabı"
+          example: "Deri Spor Ayakkabı"
       responses:
         '200':
           description: Bulunan mağaza ürünü.
@@ -1886,7 +1980,6 @@ paths:
           description: Ürün bulunamadı.
         '500':
           description: Sunucu hatası.
-
   /api/store-products/seller-products:
     get:
       summary: Satıcının kendi mağazasındaki tüm ürünleri listeler
@@ -1911,7 +2004,6 @@ paths:
           description: Mağazanızda hiçbir ürün bulunmamaktadır.
         '500':
           description: Sunucu hatası.
-
   /api/admin/users:
     post:
       summary: Yeni kullanıcı oluştur (Admin)
@@ -1966,7 +2058,6 @@ paths:
           description: Herhangi bir kayıtlı kullanıcı bulunamadı
         "500":
           description: Sunucu hatası
-
   /api/admin/users/email/{email}:
     get:
       summary: Email’e göre kullanıcı getir (Admin)
@@ -1995,7 +2086,6 @@ paths:
           description: Kullanıcı bulunamadı
         "500":
           description: Sunucu hatası
-
   /api/admin/users/sellers:
     get:
       summary: Tüm satıcıları listele (Admin)
@@ -2018,7 +2108,6 @@ paths:
           description: Erişim yok (rol)
         '500':
           description: Sunucu hatası
-
   /api/admin/users/{id}:
     get:
       summary: ID’ye göre kullanıcı getir (Admin)
@@ -2117,7 +2206,6 @@ paths:
           description: Kullanıcı bulunamadı
         "500":
           description: Sunucu hatası
-  
   /api/seller-applications:
     post:
       summary: Satıcı başvurusu oluştur
@@ -2144,7 +2232,6 @@ paths:
           description: Yetkisiz.
         '500':
           description: Sunucu hatası.
-
   /api/admin/seller-applications/pending:
     get:
       summary: Bekleyen (pending) başvuruları listele
@@ -2166,7 +2253,6 @@ paths:
           description: Erişim yok (rol)
         '500':
           description: Sunucu hatası
-
   /api/admin/seller-applications/all:
     get:
       summary: Tüm başvuruları listele
@@ -2188,7 +2274,6 @@ paths:
           description: Erişim yok (rol)
         '500':
           description: Sunucu hatası
-
   /api/admin/seller-applications/{id}/status:
     put:
       summary: Başvuru durumunu güncelle (approved/rejected)
@@ -2224,7 +2309,6 @@ paths:
           description: Başvuru zaten işlenmiş
         '500':
           description: Sunucu hatası
-
   /api/admin/seller-applications/{id}:
     delete:
       summary: Başvuruyu sil
@@ -2253,7 +2337,6 @@ paths:
           description: Bulunamadı
         '500':
           description: Sunucu hatası
-
   /api/orders:
     post:
       summary: Yeni sipariş oluşturur
@@ -2296,7 +2379,6 @@ paths:
           description: Sepet boş veya teslimat adresi bulunamadı
         "500":
           description: Sunucu hatası
-
   /api/orders/{id}/pay:
     put:
       summary: Sipariş ödemesini onayla
@@ -2326,7 +2408,6 @@ paths:
           description: Sipariş bulunamadı
         "500":
           description: Sunucu hatası
-  
   /api/store/orders:
     get:
       summary: Satıcının Kendi Siparişlerini Listele
@@ -2359,7 +2440,6 @@ paths:
           description: Erişim yok (rol).
         '500':
           description: Sunucu hatası.
-
   /api/store/orders/{id}:
     get:
       summary: Satıcının Belirli Bir Ürünü İçeren Siparişlerini Listele
@@ -2389,7 +2469,6 @@ paths:
           description: Erişim yok (rol).
         '500':
           description: Sunucu hatası.
-
   /api/store/products/{id}/sale/start:
     put:
       summary: Ürüne indirim uygula
@@ -2424,7 +2503,6 @@ paths:
           description: Ürün bulunamadı.
         '500':
           description: Sunucu hatası.
-
   /api/store/products/{id}/sale/stop:
     put:
       summary: Üründeki indirimi kaldır
@@ -2453,7 +2531,6 @@ paths:
           description: Ürün bulunamadı.
         '500':
           description: Sunucu hatası.
-
   /api/carts:
     get:
       summary: Kullanıcının sepetini getirir
@@ -2511,7 +2588,43 @@ paths:
           description: Ürün bulunamadı
         '500':
           description: Sunucu hatası
-
+  /api/carts/modify-quantity:
+    post:
+      summary: Sepetteki bir ürünün miktarını günceller
+      tags: [Cart]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - productId
+                - quantity
+              properties:
+                productId:
+                  type: string
+                  description: Miktarı değiştirilecek ürünün ID'si
+                quantity:
+                  type: integer
+                  description: Eklenecek veya çıkarılacak miktar (örn: 1, -1)
+      responses:
+        '200':
+          description: Ürün miktarı başarıyla güncellendi.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PopulatedCart"
+        '400':
+          description: Kullanıcının sepeti bulunmamaktadır.
+        '401':
+          description: Yetkisiz.
+        '404':
+          description: Ürün sepette veya sistemde bulunamadı.
+        '500':
+          description: Sunucu hatası.
   /api/carts/apply-coupon:
     post:
       summary: Sepete indirim kuponu uygular
@@ -2532,14 +2645,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/PopulatedCart'
         '400':
-          description: Geçersiz veya süresi dolmuş kupon.
+          description: Geçersiz veya süresi dolmuş kupon veya minimum sepet tutarı karşılanmıyor.
         '401':
           description: Yetkisiz.
+        '403':
+          description: Bu kupon size özel değil.
         '404':
           description: Sepet veya kupon bulunamadı.
         '500':
           description: Sunucu hatası.
-
   /api/carts/items/{productId}:
     delete:
       summary: Sepetten belirli ürünü kaldırır

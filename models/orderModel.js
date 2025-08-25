@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { addressSchema } from "./commonSchemas.js";
-import mongoosastic from "mongoosastic";
+import { Client } from "@elastic/elasticsearch";
+import { cartItemSchema } from "./cartModel.js";
 
 const orderSchema = new mongoose.Schema(
   {
@@ -9,23 +10,7 @@ const orderSchema = new mongoose.Schema(
       required: true,
       ref: "User",
     },
-    seller: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: true,
-      ref: "User",
-    },
-    orderItems: [
-      {
-        name: { type: String, required: true },
-        quantity: { type: Number, required: true },
-        price: { type: Number, required: true },
-        product: {
-          type: mongoose.Schema.Types.ObjectId,
-          required: true,
-          ref: "Product",
-        },
-      },
-    ],
+    orderItems: [cartItemSchema],
     shippingAddress: addressSchema,
     paymentMethod: {
       type: String,
@@ -49,6 +34,11 @@ const orderSchema = new mongoose.Schema(
       required: true,
       default: false,
     },
+    isCanceled: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
     appliedCoupon: {
       type: String,
     },
@@ -59,28 +49,33 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-orderSchema.plugin(mongoosastic, {
-  es_host: "localhost",
-  es_port: 9200,
+const esClient = new Client({ node: "http://localhost:9200" });
 
-  populate: [
-    {
-      path: "user",
-      select: "-password -age",
-    },
-    {
-      path: "seller",
-      select: "-password -age -sellerId",
-    },
-    {
-      path: "orderItems.product",
-      select: "description",
-      populate: {
-        path: "baseProduct",
-        select: "masterName masterCategoryName",
+orderSchema.post("save", async function (doc) {
+  try {
+    const populatedDoc = await doc.populate([
+      {
+        path: "user",
+        select: "-password -age",
       },
-    },
-  ],
+      {
+        path: "orderItems.product",
+        select: "description",
+        populate: {
+          path: "baseProduct",
+          select: "masterName masterCategopryItem",
+        },
+      },
+    ]);
+
+    await esClient.index({
+      index: "orders",
+      id: populatedDoc._id.toString(),
+      body: populatedDoc.toObject(),
+    });
+  } catch (err) {
+    console.error("Error indexing document to Elasticsearch:", err);
+  }
 });
 
 const Order = mongoose.model("Order", orderSchema);

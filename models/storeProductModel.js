@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import { priceHistoryEntrySchema } from "./commonSchemas.js";
-import mongoosastic from "mongoosastic";
+import { Client } from "@elastic/elasticsearch";
 
 const storeProductSchema = new mongoose.Schema(
   {
@@ -57,14 +57,29 @@ storeProductSchema.pre(/^find/, function (next) {
   next();
 });
 
-storeProductSchema.plugin(mongoosastic, {
-  es_host: "localhost",
-  es_port: 9200,
+const esClient = new Client({ node: "http://localhost:9200" });
 
-  populate: [
-    { path: "baseProduct", select: "masterName masterCategoryName" },
-    { path: "seller", select: "storeName" },
-  ],
+storeProductSchema.post("save", async function (doc) {
+  try {
+    const populatedDoc = await doc.populate([
+      {
+        path: "baseProduct",
+        select: "masterName masterCategoryName",
+      },
+      {
+        path: "seller",
+        select: "storeName",
+      },
+    ]);
+
+    await esClient.index({
+      index: "storeProduct",
+      id: populatedDoc._id.toString(),
+      body: populatedDoc.toObject(),
+    });
+  } catch (err) {
+    console.error("Error indexing document to Elasticsearch:", err);
+  }
 });
 
 export const StoreProduct = mongoose.model("StoreProduct", storeProductSchema);

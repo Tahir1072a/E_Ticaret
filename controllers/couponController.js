@@ -2,15 +2,7 @@ import Coupon from "../models/couponModel.js";
 
 export const createCoupon = async (req, res) => {
   try {
-    const {
-      code,
-      description,
-      discountType,
-      discountValue,
-      minPurchaseAmount,
-      expiryDate,
-      usageLimit,
-    } = req.body;
+    const { ...couponData } = req.body;
 
     const id = req.user._id;
 
@@ -28,13 +20,7 @@ export const createCoupon = async (req, res) => {
     }
 
     const newCoupon = await Coupon.create({
-      code,
-      description,
-      discountType,
-      discountValue,
-      minPurchaseAmount,
-      expiryDate,
-      usageLimit,
+      ...couponData,
       createdBy: id,
     });
 
