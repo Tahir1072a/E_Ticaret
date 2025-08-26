@@ -1,7 +1,3 @@
-import { StoreProduct } from "../models/storeProductModel.js";
-import { BaseProduct } from "../models/baseProductModel.js";
-import mongoose from "mongoose";
-
 export const createStoreProduct = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -283,70 +279,6 @@ export const getProductBySellerId = async (req, res) => {
     }
 
     res.status(200).json(products);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-export const startSale = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { salePrice } = req.body;
-    const sellerId = req.user_id;
-
-    if (salePrice <= 0) {
-      return res
-        .status(400)
-        .json({ message: "Lütfen geçerli bir indirim fiyatı giriniz" });
-    }
-
-    const product = await StoreProduct.findOne({ _id: id, seller: sellerId });
-    if (!product) {
-      return res
-        .status(404)
-        .json({ message: "Yetkili olduğunuz bir ürün bulunamadı" });
-    }
-
-    if (salePrice >= product.currentPrice) {
-      return res
-        .status(400)
-        .json({ message: "İndirimli fiyat, normal fiyattan düşük olmalı" });
-    }
-
-    product.onSale = true;
-    product.salePrice = salePrice;
-    await product.save();
-
-    res
-      .status(200)
-      .json({ message: "Ürün başarıyla indirime girdi.", data: product });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-export const stopSale = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const sellerId = req.user_id;
-
-    const product = await StoreProduct.findOne({ _id: id, seller: sellerId });
-    if (!product) {
-      return res.status(400).json({ message: "Aradığınız ürün bulunamadı" });
-    }
-
-    if (!product.onSale)
-      return res.status(400).json({ message: "Bu ürün zaten indrimde değil" });
-
-    const updatedProduct = await StoreProduct.findByIdAndUpdate(
-      id,
-      { onSale: false, $unset: { salePrice: "" } },
-      { new: true }
-    );
-
-    res
-      .status(200)
-      .json({ message: "Ürün indirimden çıkarıldı", data: updatedProduct });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

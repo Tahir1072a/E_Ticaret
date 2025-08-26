@@ -1,6 +1,6 @@
 import { Seller, User } from "../models/usersModel.js";
 import Order from "../models/orderModel.js";
-import Coupon from "../models/couponModel.js";
+import MasterCoupon from "../models/couponModel.js";
 
 export const getAllSeller = async (req, res) => {
   try {
@@ -299,7 +299,7 @@ export const openPackage = async (req, res) => {
       36
     )}`;
 
-    const newCoupon = await Coupon.create({
+    const newCoupon = await MasterCoupon.create({
       code: uniqueCode,
       description: `Paketten çıkan hediye: ${randomPrize.description}`,
       discountType: randomPrize.discountType,

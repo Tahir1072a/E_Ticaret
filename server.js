@@ -9,7 +9,7 @@ import cartsRoutes from "./routes/cartRoutes.js";
 import ordersRoutes from "./routes/orderRoutes.js";
 import wholeSaleRoutes from "./routes/wholeSaleRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
-import storeRoutes from "./routes/orderRoutes.js";
+import storeRoutes from "./routes/storeRoutes.js";
 import customerRoutes from "./routes/customerRoutes.js";
 import searchRoutes from "./routes/searchRoutes.js";
 import couponRoutes from "./routes/couponRoutes.js";

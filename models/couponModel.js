@@ -13,6 +13,10 @@ const masterCouponSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    discountValue: {
+      type: Number,
+      required: true,
+    },
     discountType: {
       type: String,
       required: true,
@@ -40,20 +44,50 @@ const masterCouponSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    usedUsers: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
+    type: {
+      type: String,
+      required: true,
+      enum: ["Master", "Specific", "Category"],
+      default: "Master",
+    },
     isActive: {
       type: Boolean,
       default: true,
     },
   },
-  { timestamps: true }
+  { discriminatorKey: "couponType", timestamps: true }
 );
 
-const Coupon = mongoose.model("Coupon", masterCouponSchema);
+masterCouponSchema.pre(/^find/, function (next) {
+  this.where({ isActive: true });
+  next();
+});
 
-export default Coupon;
+const MasterCoupon = mongoose.model("masterCoupon", masterCouponSchema);
+
+// Kişiye özel tanımlı kuponlar
+export const SpecificCoupon = MasterCoupon.discriminator(
+  "Specific",
+  new mongoose.Schema({
+    targetUsers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+  })
+);
+
+export const CategoryCoupon = MasterCoupon.discriminator(
+  "Category",
+  new mongoose.Schema({
+    targetCategories: [
+      {
+        type: String,
+        required: true,
+      },
+    ],
+  })
+);
+
+export default MasterCoupon;

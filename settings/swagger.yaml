@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: E-Ticaret API
-  version: 1.0.0
+  version: 1.0.4
   description: Base Product, Admin User, Seller Application, Order, Cart ve Auth uçları
 servers:
   - url: http://localhost:3000
@@ -579,9 +579,12 @@ components:
         updatedAt:
           type: string
           format: date-time
-        totalPrice:
+        subTotal:
           type: number
-          example: 399.8
+        total:
+          type: number
+        appliedCoupon:
+          type: string
     RemoveFromCartResponse:
       type: object
       properties:
@@ -682,7 +685,7 @@ components:
           $ref: "#/components/schemas/SellerShippingAddress"
     CouponInput:
       type: object
-      required: [code, description, discountType, expiryDate]
+      required: [code, description, discountType, expiryDate, discountValue, type]
       properties:
         code:
           type: string
@@ -694,6 +697,9 @@ components:
           type: string
           enum: [percentage, fixedAmount]
           example: "percentage"
+        discountValue:
+          type: number
+          example: 25
         minPurchaseAmount:
           type: number
           example: 100
@@ -704,6 +710,21 @@ components:
         usageLimit:
           type: integer
           example: 100
+        type:
+          type: string
+          enum: [Master, Specific, Category]
+          example: "Master"
+        targetUsers:
+          type: array
+          items:
+            type: string
+          description: "Eğer kupon tipi 'Specific' ise, hedeflenen kullanıcı ID'leri."
+        targetCategories:
+          type: array
+          items:
+            type: string
+          description: "Eğer kupon tipi 'Category' ise, hedeflenen kategori adları."
+          example: ["Ayakkabı", "T-shirt"]
     CouponResponse:
       type: object
       properties:
@@ -715,6 +736,8 @@ components:
           type: string
         discountType:
           type: string
+        discountValue:
+          type: number
         minPurchaseAmount:
           type: number
         expiryDate:
@@ -726,6 +749,19 @@ components:
           type: integer
         isActive:
           type: boolean
+        type:
+          type: string
+          enum: [Master, Specific, Category]
+        createdBy:
+          type: string
+        targetUsers:
+          type: array
+          items:
+            type: string
+        targetCategories:
+          type: array
+          items:
+            type: string
     ApplyCouponInput:
       type: object
       required: [couponCode]
@@ -735,15 +771,11 @@ components:
           example: "SUMMER25"
     SaleInput:
       type: object
-      required: [discountPercentage, saleEndDate]
+      required: [discountPercentage]
       properties:
         discountPercentage:
           type: number
           example: 20
-        saleEndDate:
-          type: string
-          format: date-time
-          example: "2025-08-31T23:59:59.000Z"
     Review:
       type: object
       properties:
@@ -1199,7 +1231,6 @@ paths:
           description: Kullanıcı bulunamadı.
         '500':
           description: Sunucu hatası.
-  /api/customers/addresses/delete-multiple:
     delete:
       summary: Müşterinin birden fazla kargo adresini siler
       tags: [Customers]
@@ -1235,6 +1266,33 @@ paths:
         '500':
           description: Sunucu hatası.
   /api/customers/addresses/{id}:
+    get:
+      summary: Müşterinin belirli bir kargo adresini ID'ye göre getirir
+      tags: [Customers]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Görüntülenecek adresin ID'si
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Adres detayı başarıyla alındı.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShippingAddress'
+        '400':
+          description: Lütfen istediğiniz adresin id değerini belirtin.
+        '401':
+          description: Yetkisiz.
+        '404':
+          description: Kullanıcı veya adres bulunamadı.
+        '500':
+          description: Sunucu hatası.
     put:
       summary: Müşterinin belirli bir kargo adresini günceller
       tags: [Customers]
@@ -1451,8 +1509,8 @@ paths:
           description: Sunucu hatası.
   /api/coupons:
     post:
-      summary: Yeni bir indirim kuponu oluşturur
-      description: "Sadece **Admin** ve **Seller** rollerine sahip kullanıcılar yeni kupon oluşturabilir."
+      summary: Yeni bir indirim kuponu oluşturur (Admin)
+      description: "Sadece **Admin** rolüne sahip kullanıcılar yeni kupon oluşturabilir."
       tags: [Coupons]
       security:
         - bearerAuth: []
@@ -1468,13 +1526,241 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CouponResponse'
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/CouponResponse'
         '400':
-          description: Geçersiz istek (örn: kupon kodu zaten mevcut).
+          description: "Geçersiz istek (örn: kupon kodu zaten mevcut, son kullanma tarihi geçmiş, geçersiz kategori)."
         '401':
           description: Yetkisiz.
         '403':
           description: Erişim yok (rol).
+        '500':
+          description: Sunucu hatası.
+    get:
+      summary: Tüm kuponları listeler (Admin)
+      description: "Sistemdeki tüm aktif kuponları listeler. Sadece **Admin** rolü erişebilir."
+      tags: [Coupons]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Kupon listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CouponResponse'
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '500':
+          description: Sunucu hatası.
+  /api/coupons/apply-coupon:
+    post:
+      summary: Sepete indirim kuponu uygular
+      description: "Bir kullanıcının sepetine kupon uygular. Kategori bazlı kuponları destekler."
+      tags: [Coupons]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyCouponInput'
+      responses:
+        '200':
+          description: Kupon başarıyla uygulandı.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PopulatedCart'
+        '400':
+          description: "Geçersiz veya süresi dolmuş kupon veya minimum sepet tutarı karşılanmıyor."
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Bu kupon size özel değil.
+        '404':
+          description: Sepet veya kupon bulunamadı.
+        '500':
+          description: Sunucu hatası.
+  /api/coupons/type/{type}:
+    get:
+      summary: Türe göre kuponları listeler (Admin)
+      description: "Belirtilen türe göre (`Master`, `Specific`, `Category`) kuponları listeler. Sadece **Admin** rolü erişebilir."
+      tags: [Coupons]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [Master, Specific, Category]
+      responses:
+        '200':
+          description: İlgili türdeki kuponların listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CouponResponse'
+        '400':
+          description: Geçersiz kupon türü.
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '500':
+          description: Sunucu hatası.
+  /api/coupons/code/{code}:
+    get:
+      summary: Koda göre kupon getirir (Admin)
+      description: "Belirtilen kupon koduna sahip kuponu getirir. Sadece **Admin** rolü erişebilir."
+      tags: [Coupons]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: İstenen kupon
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CouponResponse'
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '404':
+          description: Kupon bulunamadı.
+        '500':
+          description: Sunucu hatası.
+  /api/coupons/cart/{id}:
+    delete:
+      summary: Sepetten uygulanan kuponu kaldırır
+      description: "Kullanıcının, ID'si belirtilen sepetindeki `appliedCoupon` alanını temizleyerek kuponu kaldırır."
+      tags: [Coupons]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "Sepet ID'si (Cart ObjectId)"
+      responses:
+        '200':
+          description: Kupon başarıyla sepetten kaldırıldı.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Başarıyla kupon kaldırılmıştır"
+                  data:
+                    $ref: '#/components/schemas/PopulatedCart'
+        '400':
+          description: Geçersiz istek (örn: Cart ID belirtilmedi).
+        '401':
+          description: Yetkisiz.
+        '404':
+          description: Sepet bulunamadı.
+        '500':
+          description: Sunucu hatası.
+  /api/coupons/{id}:
+    put:
+      summary: Kuponun indirim değerini günceller (Admin)
+      description: "ID'si belirtilen kuponun indirim değerini günceller. Sadece **Admin** rolü erişebilir."
+      tags: [Coupons]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [discountValue]
+              properties:
+                discountValue:
+                  type: number
+                  example: 30
+      responses:
+        '200':
+          description: Kupon başarıyla güncellendi.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/CouponResponse'
+        '400':
+          description: Geçersiz indirim değeri.
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '404':
+          description: Kupon bulunamadı.
+        '500':
+          description: Sunucu hatası.
+    delete:
+      summary: Kuponu pasif hale getirir (Admin)
+      description: "ID'si belirtilen kuponu `isActive: false` yaparak pasif hale getirir. Sadece **Admin** rolü erişebilir."
+      tags: [Coupons]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Kupon başarıyla pasif hale getirildi.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/CouponResponse'
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '404':
+          description: Kupon bulunamadı.
         '500':
           description: Sunucu hatası.
   /api/search/base-products:
@@ -1582,7 +1868,7 @@ paths:
                 masterDate:
                   type: string
                   format: date-time
-                  example: 2025-08-13T12:21:00.000Z
+                  example: "2025-08-13T12:21:00.000Z"
                 masterCategory:
                   type: string
                   example: Ayakkabı
@@ -2038,6 +2324,7 @@ paths:
           description: Sunucu hatası
     get:
       summary: Tüm kullanıcıları listele (Admin)
+      description: "Tüm aktif (`isActive: true`) kullanıcıları listeler."
       tags: [AdminUsers]
       security:
         - bearerAuth: []
@@ -2089,7 +2376,7 @@ paths:
   /api/admin/users/sellers:
     get:
       summary: Tüm satıcıları listele (Admin)
-      description: "Sistemdeki tüm satıcı (role: 'Seller') kullanıcılarını listeler."
+      description: "Sistemdeki tüm aktif (`isActive: true`) satıcı (role: 'Seller') kullanıcılarını listeler."
       tags: [AdminUsers]
       security:
         - bearerAuth: []
@@ -2469,10 +2756,70 @@ paths:
           description: Erişim yok (rol).
         '500':
           description: Sunucu hatası.
+  /api/store/products/sale/start-all:
+    post:
+      summary: Tüm ürünlere indirim uygula
+      description: "Satıcının mağazasındaki tüm ürünlere belirli bir yüzde ile indirim uygular."
+      tags: [Store]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaleInput'
+      responses:
+        '200':
+          description: İndirim başarıyla uygulandı.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Tüm ürünlere indirim başarıyla uygulandı!"
+        '400':
+          description: Geçersiz indirim oranı.
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '404':
+          description: Mağazada ürün bulunamadı.
+        '500':
+          description: Sunucu hatası.
+  /api/store/products/sale/stop-all:
+    post:
+      summary: Tüm ürünlerdeki indirimi kaldır
+      description: "Satıcının mağazasındaki tüm ürünlerden indirimi kaldırır."
+      tags: [Store]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: İndirimler başarıyla kaldırıldı.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "İndirimler başarıyla kaldırıldı. 5 ürün güncellendi."
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '404':
+          description: Mağazada ürün bulunamadı.
+        '500':
+          description: Sunucu hatası.
   /api/store/products/{id}/sale/start:
     put:
       summary: Ürüne indirim uygula
-      description: "Satıcının, ID'si belirtilen ürününe belirli bir yüzde ve bitiş tarihine sahip bir indirim başlatmasını sağlar."
+      description: "Satıcının, ID'si belirtilen ürününe belirli bir yüzde ile indirim başlatmasını sağlar."
       tags: [Store]
       security:
         - bearerAuth: []
@@ -2494,7 +2841,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StoreProductResponse'
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Ürün başarıyla indirime girdi."
+                  data:
+                    $ref: '#/components/schemas/StoreProductResponse'
+        '400':
+          description: Geçersiz indirim oranı.
         '401':
           description: Yetkisiz.
         '403':
@@ -2522,7 +2877,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StoreProductResponse'
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Ürün indirimden çıkarıldı"
+                  data:
+                    $ref: '#/components/schemas/StoreProductResponse'
+        '400':
+          description: Ürün zaten indirimde değil.
         '401':
           description: Yetkisiz.
         '403':
@@ -2556,6 +2919,7 @@ paths:
           description: Sunucu hatası
     post:
       summary: Sepete ürün ekler (varsa miktarı arttırır)
+      description: "Sepete yeni bir ürün ekler veya mevcut ürünün miktarını artırır. İşlem öncesi stok kontrolü yapar."
       tags: [Cart]
       security:
         - bearerAuth: []
@@ -2582,6 +2946,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PopulatedCart"
+        '400':
+          description: "Yetersiz stok."
         '401':
           description: Yetkisiz
         '404':
@@ -2591,6 +2957,7 @@ paths:
   /api/carts/modify-quantity:
     post:
       summary: Sepetteki bir ürünün miktarını günceller
+      description: "Sepetteki bir ürünün miktarını artırır veya azaltır. İşlem öncesi stok kontrolü yapar."
       tags: [Cart]
       security:
         - bearerAuth: []
@@ -2616,42 +2983,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PopulatedCart"
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Ürün miktarı başarıyla güncellenmiştir"
+                  data:
+                    $ref: '#/components/schemas/PopulatedCart'
         '400':
-          description: Kullanıcının sepeti bulunmamaktadır.
+          description: "Kullanıcının sepeti bulunmamaktadır veya yetersiz stok."
         '401':
           description: Yetkisiz.
         '404':
           description: Ürün sepette veya sistemde bulunamadı.
-        '500':
-          description: Sunucu hatası.
-  /api/carts/apply-coupon:
-    post:
-      summary: Sepete indirim kuponu uygular
-      tags: [Cart]
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ApplyCouponInput'
-      responses:
-        '200':
-          description: Kupon başarıyla uygulandı.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PopulatedCart'
-        '400':
-          description: Geçersiz veya süresi dolmuş kupon veya minimum sepet tutarı karşılanmıyor.
-        '401':
-          description: Yetkisiz.
-        '403':
-          description: Bu kupon size özel değil.
-        '404':
-          description: Sepet veya kupon bulunamadı.
         '500':
           description: Sunucu hatası.
   /api/carts/items/{productId}:

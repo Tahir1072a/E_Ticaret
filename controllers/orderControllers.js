@@ -3,6 +3,7 @@ import Cart from "../models/cartModel.js";
 import mongoose from "mongoose";
 import { StoreProduct } from "../models/storeProductModel.js";
 import Coupon from "../models/couponModel.js";
+import CouponUsage from "../models/couponUsedModel.js";
 
 export const createOrder = async (req, res) => {
   try {
@@ -89,6 +90,7 @@ export const confirmPayment = async (req, res) => {
 
   try {
     const { id } = req.params;
+    const userId = req.user._id;
     const order = await Order.findById(id).session(session);
 
     if (!order) {
@@ -99,9 +101,29 @@ export const confirmPayment = async (req, res) => {
     }
 
     if (order.appliedCoupon) {
-      await Coupon.updateOne(
-        { code: order.appliedCoupon },
-        { $inc: { timeUsed: 1 } },
+      const coupon = await Coupon.findOne({
+        code: order.appliedCoupon,
+      }).session(session);
+
+      if (!coupon) {
+        throw new Error(`Kupon kodu bulunamadı: ${order.appliedCoupon}`);
+      }
+
+      if (coupon.timesUsed + 1 === coupon.usageLimit) {
+        coupon.isActive = false;
+      }
+
+      coupon.timesUsed += 1;
+      await coupon.save({ session });
+
+      await CouponUsage.create(
+        [
+          {
+            coupon: coupon._id,
+            user: userId,
+            order: order._id,
+          },
+        ],
         { session }
       );
     }
