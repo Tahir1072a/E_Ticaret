@@ -10,13 +10,19 @@ import {
   applySaleAllProducts,
   removeSaleAllProducts,
 } from "../controllers/storeController.js";
+import {
+  getSellerReturnRequests,
+  updateReturnBySeller,
+} from "../controllers/returnRequestController.js";
 
 const router = express.Router();
 
 router.use(protect, authorize("Admin", "Seller"));
 
 router.get("/orders", getSellerOrders);
-router.get("/orders/:id", getSellerOrdersByProductId);
+router.get("/orders/id/:id", getSellerOrdersByProductId);
+router.get("/orders/return-requests", getSellerReturnRequests);
+router.put("/orders/return-requests/:id", updateReturnBySeller);
 
 router.post("/products/sale/start-all", applySaleAllProducts);
 router.post("/products/sale/stop-all", removeSaleAllProducts);

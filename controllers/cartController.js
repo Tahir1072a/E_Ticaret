@@ -74,11 +74,6 @@ export const addItemToCart = async (req, res) => {
       });
     }
 
-    const total = cart.items.reduce((acc, item) => {
-      return acc + item.price * item.quantity;
-    }, 0);
-    cart.total = total;
-    cart.subTotal = total;
     const updatedCart = await cart.save();
 
     res.status(200).json(updatedCart);
@@ -129,12 +124,6 @@ export const modifyCartQuantity = async (req, res) => {
         .json({ message: "Sepetinizde böyle bir ürün bulunmamaktadır" });
     }
 
-    const total = cart.items.reduce((acc, item) => {
-      return acc + item.price * item.quantity;
-    }, 0);
-
-    cart.total = total;
-    cart.subTotal = total;
     const updatedCart = await cart.save();
 
     res.status(200).json({
@@ -161,8 +150,8 @@ export const removeItemFromCart = async (req, res) => {
       (item) => item.product.toString() !== productId
     );
 
-    await cart.save();
-    res.status(200).json({ message: "Ürün sepetten kaldırıldı", cart });
+    const removedCart = await cart.save();
+    res.status(200).json({ message: "Ürün sepetten kaldırıldı", removedCart });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

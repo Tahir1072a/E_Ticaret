@@ -98,22 +98,27 @@ export const applyCoupon = async (req, res) => {
       },
     });
 
+    if (!coupon) {
+      return res.status(404).json({ message: "Geçersiz kupon kodu" });
+    }
+    if (coupon.expiryDate < new Date()) {
+      return res.status(400).json({ message: "Bu kuponun süresi dolmuş" });
+    }
+    if (coupon.timesUsed >= coupon.usageLimit) {
+      return res
+        .status(400)
+        .json({ message: "Bu kupon kullanım limitine ulaşmıştır" });
+    }
+    if (cart.subTotal < coupon.minPurchaseAmount) {
+      return res.status(400).json({
+        message: `Minimum sepet tutarı: ${coupon.minPurchaseAmount} TL`,
+      });
+    }
+
     if (!cart || cart.items.length === 0) {
       return res.status(400).json({
         message: "Kupon uygulamak için sepetiniz boş olmaması gerekiyor.",
       });
-    }
-
-    if (!coupon) {
-      return res.status(404).json({ message: "Geçersiz kupon kodu" });
-    } else if (!coupon.isActive) {
-      return res.status(400).json({ message: "Bu kupon artık aktif değil." });
-    } else if (coupon.expiryDate < new Date()) {
-      return res.status(400).json({ message: "Bu kuponun süresi dolmuş" });
-    } else if (coupon.timesUsed >= coupon.usageLimit) {
-      return res
-        .status(400)
-        .json({ message: "Bu kupon kullanım limitine ulaşmıştır" });
     }
 
     if (coupon.type === "Specific") {
@@ -189,9 +194,11 @@ export const applyCoupon = async (req, res) => {
     cart.subTotal = subTotal;
     cart.total = total;
     cart.appliedCoupon = coupon.code;
-    await cart.save();
+    const updatedCart = await cart.save();
 
-    res.status(200).json({ message: `Kupon başarıyla uygulandı!`, data: cart });
+    res
+      .status(200)
+      .json({ message: `Kupon başarıyla uygulandı!`, data: updatedCart });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -199,19 +206,16 @@ export const applyCoupon = async (req, res) => {
 
 export const removeCouponFromCart = async (req, res) => {
   try {
-    const { id: cartId } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(cartId)) {
-      return res.status(400).json({ message: "Geçersiz sepet ID formatı." });
-    }
-
-    const cart = await Cart.findById(cartId).select("subTotal").lean();
+    const userId = req.user._id;
+    const cart = await Cart.findOne({ user: userId }).select("subTotal").lean();
 
     if (!cart) {
-      return res.status(400).json({ message: "Kullanıcının sepeti boş!" });
+      return res
+        .status(404)
+        .json({ message: "Kullanıcının sepeti bulunamadı!" });
     }
 
-    const updatedCart = await Cart.findByIdAndUpdate(cartId, {
+    const updatedCart = await Cart.findByIdAndUpdate(cart._id, {
       $unset: { appliedCoupon: "" },
       $set: { total: cart.subTotal },
     });

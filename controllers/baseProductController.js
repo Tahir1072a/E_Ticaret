@@ -3,21 +3,13 @@ import axios from "axios";
 
 export const createBaseProduct = async (req, res) => {
   try {
-    const {
-      masterNumber,
-      masterName,
-      masterPrice,
-      masterDate,
-      masterCategory,
-    } = req.body;
+    const { ...baseProduct } = req.body;
+    const userId = req.user._id;
+    const { masterPrice } = baseProduct;
 
     const newBaseProduct = await BaseProduct.create({
-      masterNumber,
-      masterName,
-      masterPrice,
-      masterPriceHistory: [{ price: masterPrice }],
-      masterDate,
-      masterCategory,
+      ...baseProduct,
+      masterPriceHistory: [{ price: masterPrice, user: userId }],
     });
 
     res.status(201).json({
@@ -79,13 +71,13 @@ export const getBaseProductById = async (req, res) => {
 
 export const getBaseProductByName = async (req, res) => {
   try {
-    const { masterName } = req.params;
+    const { name: masterName } = req.params;
 
-    const findProduct = await BaseProduct.findById(id);
+    const findProduct = await BaseProduct.findOne({ masterName: masterName });
 
     if (!findProduct) {
       return res.status(404).json({
-        message: `Bu isme ait bir ürün bulunamamaktadır. ID: ${masterName}`,
+        message: `Bu isme ait bir ürün bulunamamaktadır. Name: ${masterName}`,
       });
     }
 
@@ -216,12 +208,10 @@ export const uploadBaseProductImage = async (req, res) => {
     product.masterImage = `/uploads/${req.file.filename}`;
 
     const updateProduct = await product.save();
-    res
-      .status(200)
-      .json({
-        message: "Ürün resmi başarıyla güncellendi",
-        data: updateProduct,
-      });
+    res.status(200).json({
+      message: "Ürün resmi başarıyla güncellendi",
+      data: updateProduct,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

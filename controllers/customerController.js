@@ -1,6 +1,6 @@
 import { Seller, User } from "../models/usersModel.js";
 import Order from "../models/orderModel.js";
-import MasterCoupon from "../models/couponModel.js";
+import MasterCoupon, { SpecificCoupon } from "../models/couponModel.js";
 
 export const getAllSeller = async (req, res) => {
   try {
@@ -20,7 +20,7 @@ export const deleteCustomer = async (req, res) => {
 
     res.status(200).json({ message: "Kullanıcı hesabı başarıyla silinmiştir" });
   } catch (err) {
-    res.status(500).json({ message: message });
+    res.status(500).json({ message: err.message });
   }
 };
 
@@ -28,15 +28,15 @@ export const getAllAdresses = async (req, res) => {
   try {
     const id = req.user.id;
 
-    const addresses = await User.findById(id).select("shippingAddresses");
+    const user = await User.findById(id).select("shippingAddresses").lean();
 
-    if (addresses.length === 0) {
+    if (user.shippingAddresses.length === 0) {
       return res
         .status(404)
         .json({ message: "Kayıtlı adresiniz bulunamamıştır" });
     }
 
-    res.status(200).json(addresses);
+    res.status(200).json(user.shippingAddresses);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -71,12 +71,39 @@ export const getCustomerAddressById = async (req, res) => {
   }
 };
 
+export const getAllCoupons = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const coupons = await SpecificCoupon.find({ targetUsers: userId });
+    const publicCoupons = await MasterCoupon.find({});
+
+    if (
+      (!coupons && !publicCoupons) ||
+      (coupons.length === 0 && publicCoupons.length === 0)
+    ) {
+      return res
+        .status(404)
+        .json({ message: "Size atanmış bir kupon bulunamadı." });
+    }
+
+    const totalCoupons = [...coupons, ...publicCoupons];
+
+    res.status(200).json({
+      message: "Kuponlar başarıyla getirildi.",
+      data: totalCoupons,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 export const updateCustomer = async (req, res) => {
   try {
     const id = req.user._id;
     const { ...customerData } = req.body;
 
-    const updatedCustomer = await User.findOneAndUpdate(
+    const updatedCustomer = await User.findByIdAndUpdate(
       id,
       { $set: customerData },
       {
@@ -148,7 +175,7 @@ export const deleteCustomerAddress = async (req, res) => {
     }
 
     res.status(200).json({
-      message: "Kullanıcı bulunamadı",
+      message: "Adres başarıyla silinmiştir.",
       data: deletedAdress.shippingAddresses,
     });
   } catch (err) {
@@ -200,12 +227,14 @@ export const updateCustomerAddress = async (req, res) => {
         message: "Lütfen güncellenmesini istediğiniz adresi seçiniz.",
       });
 
+    const updateFields = {};
+    for (const key in updateAddress) {
+      updateFields[`shippingAddresses.$.${key}`] = updateAddress[key];
+    }
+
     const result = await User.updateOne(
       { _id: userId, "shippingAddresses._id": id },
-      {
-        $set: { "shippingAddresses.$": { _id: id, ...updateAddress } },
-      },
-      { new: true }
+      { $set: updateFields }
     );
 
     if (result.nModified === 0) {
@@ -232,7 +261,7 @@ export const getCustomerOrders = async (req, res) => {
 
     res.status(200).json(orders);
   } catch (err) {
-    res.status(500).json({ message: message });
+    res.status(500).json({ message: err.message });
   }
 };
 

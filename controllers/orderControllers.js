@@ -4,6 +4,8 @@ import mongoose from "mongoose";
 import { StoreProduct } from "../models/storeProductModel.js";
 import Coupon from "../models/couponModel.js";
 import CouponUsage from "../models/couponUsedModel.js";
+import { User } from "../models/usersModel.js";
+import ReturnRequest from "../models/returnRequestModel.js";
 
 export const createOrder = async (req, res) => {
   try {
@@ -195,5 +197,195 @@ export const getSellerOrdersByProductId = async (req, res) => {
     res.status(200).json(orders);
   } catch (err) {
     res.status(500).json({ messsage: err.message });
+  }
+};
+
+export const getOrdersByUserId = async (req, res) => {
+  try {
+    const { id: userId } = req.params;
+
+    if (!id) {
+      return res
+        .status(400)
+        .json({ message: "Lütfen düzgün bir kullanıcı id değeri giriniz" });
+    }
+
+    const user = await User.findById(id).lean();
+
+    if (!user) {
+      res.status(404).json({
+        message: `Sisteme kayıtlı bu ID sahip bir kullanıcı bulunamadı. ID: ${userId}`,
+      });
+    }
+
+    const orders = await Order.find({ user: userId }).populate("user");
+
+    res.status(200).json(orders);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const getOrdersByRole = async (req, res) => {
+  try {
+    const { role } = req.params;
+
+    if (!role) {
+      return res.status(400).json({ message: "Rol parametresi zorunludur." });
+    }
+
+    const orders = await Order.aggregate([
+      {
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "userDetails",
+        },
+      },
+      {
+        $unwind: "$userDetails",
+      },
+      {
+        $match: {
+          "userDetails.role": role,
+        },
+      },
+      {
+        $project: {
+          user: "$userDetails",
+
+          orderItems: 1,
+          shippingAddress: 1,
+          paymentMethod: 1,
+          totalPrice: 1,
+          isPaid: 1,
+          paidAt: 1,
+          isDelivered: 1,
+          isCanceled: 1,
+          appliedCoupon: 1,
+          deliveredAt: 1,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      },
+    ]);
+
+    res.status(200).json(orders);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const getOrdersByUserName = async (req, res) => {
+  try {
+    const { username } = req.params;
+
+    if (!username) {
+      return res.status(404).json({ message: "UserName alanı zorunludur" });
+    }
+
+    const orders = await Order.aggregate([
+      {
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "userDetails",
+        },
+      },
+      {
+        $unwind: "$userDetails",
+      },
+      {
+        $match: {
+          "userDetails.username": username,
+        },
+      },
+      {
+        $project: {
+          user: "$userDetails",
+
+          orderItems: 1,
+          shippingAddress: 1,
+          paymentMethod: 1,
+          totalPrice: 1,
+          isPaid: 1,
+          paidAt: 1,
+          isDelivered: 1,
+          isCanceled: 1,
+          appliedCoupon: 1,
+          deliveredAt: 1,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      },
+    ]);
+
+    res.status(200).json(orders);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const getAllOrders = async (req, res) => {
+  try {
+    const orders = await Order.find({}).populate("user");
+
+    res.status(200).json(orders);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const createReturnRequest = async (req, res) => {
+  try {
+    const { orderId, itemsToReturn, reason, customerComments } = req.body;
+
+    const order = await Order.findById(orderId).populate({
+      path: "orderItems.product",
+      select: "seller",
+    });
+
+    const sellerGroupedItems = {};
+
+    for (const item of itemsToReturn) {
+      const orderItem = order.orderItems.find(
+        (oi) => oi._id.toString() === item.orderItemId
+      );
+      if (!orderItem) continue;
+
+      const sellerId = orderItem.product.seller.toString();
+      sellerGroupedItems[sellerId].push(item);
+    }
+
+    const createdRequests = [];
+    const creationPromises = [];
+
+    for (const sellerId in sellerGroupedItems) {
+      const itemsForThisSeller = sellerGroupedItems[sellerId];
+
+      const newReturnRequest = new ReturnRequest({
+        user: req.user.id,
+        order: orderId,
+        seller: sellerId,
+        returnedItems: itemsForThisSeller,
+        reason: reason,
+        customerComments: customerComments,
+        status: "PENDING_APPROVAL",
+      });
+
+      creationPromises.push(newReturnRequest.save());
+    }
+
+    const results = await Promise.all(creationPromises);
+    createdRequests.push(...results);
+
+    res.status(201).json({
+      message: "İade talepleriniz başarıyla oluşturuldu.",
+      createdRequests,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };

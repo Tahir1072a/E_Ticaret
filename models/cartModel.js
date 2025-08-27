@@ -43,6 +43,24 @@ const cartSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+cartSchema.pre("save", function (next) {
+  let total = 0;
+
+  if (this.items.length > 0) {
+    total = this.items.reduce((acc, item) => {
+      return acc + item.price * item.quantity;
+    }, 0);
+  }
+
+  this.subTotal = total;
+
+  if (!this.appliedCoupon) {
+    this.total = total;
+  }
+
+  next();
+});
+
 const Cart = mongoose.model("Cart", cartSchema);
 
 export default Cart;

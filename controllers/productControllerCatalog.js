@@ -12,7 +12,10 @@ export const getAllPublicProducts = async (req, res) => {
 
     const products = await features.query
       .populate("seller", "storeName")
-      .populate("baseProduct", "masterName masterCategory");
+      .populate(
+        "baseProduct",
+        "masterName masterCategory masterDate masterNumber"
+      );
 
     res.status(200).json({
       status: "success",
@@ -31,7 +34,10 @@ export const getPublicProductById = async (req, res) => {
     const { id } = req.params;
 
     const product = await StoreProduct.findById(id)
-      .populate("baseProduct", "masterName masterCategory")
+      .populate(
+        "baseProduct",
+        "masterName masterCategory masterDate masterNumber"
+      )
       .populate("seller", "storeName")
       .lean();
 
@@ -66,7 +72,10 @@ export const getPublicProductByCategory = async (req, res) => {
     const products = await StoreProduct.find({
       baseProduct: { $in: baseProductIds },
     })
-      .populate("baseProduct", "masterName masterCategory")
+      .populate(
+        "baseProduct",
+        "masterName masterCategory masterDate masterNumber"
+      )
       .populate("seller", "storeName")
       .lean();
 
@@ -94,7 +103,10 @@ export const getPublicProductsByStoreName = async (req, res) => {
     }
 
     const products = await StoreProduct.find({ seller: seller._id })
-      .populate("baseProduct", "masterName masterCategory")
+      .populate(
+        "baseProduct",
+        "masterName masterCategory masterDate masterNumber"
+      )
       .populate("seller", "storeName");
 
     res.status(200).json(products);
