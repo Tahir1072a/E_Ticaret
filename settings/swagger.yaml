@@ -1,8 +1,8 @@
 openapi: 3.0.0
 info:
   title: E-Ticaret API
-  version: 1.1.5
-  description: Base Product, Admin User, Seller Application, Order, Cart ve Auth uçları
+  version: 1.1.7
+  description: Base Product, Admin User, Seller Application, Order, Cart, Auth ve Return Request uçları
 servers:
   - url: http://localhost:3000
 
@@ -12,7 +12,7 @@ tags:
   - name: Auth
     description: Kullanıcı kimlik doğrulama ve şifre işlemleri
   - name: Customers
-    description: Müşteri profil, adres, sipariş ve favori işlemleri
+    description: Müşteri profil, adres, sipariş, favori ve iade işlemleri
   - name: BaseProducts
     description: Toptan ürün (Base Product) yönetimi
   - name: StoreProducts
@@ -24,11 +24,11 @@ tags:
   - name: AdminSellerApplications
     description: Admin — Satıcı başvuruları yönetimi
   - name: AdminOrders
-    description: Admin için sipariş yönetimi uçları
+    description: Admin için sipariş ve iade yönetimi uçları
   - name: Orders
     description: Müşteri sipariş oluşturma ve ödeme işlemleri
   - name: Store
-    description: Satıcının sipariş ve mağaza yönetimi işlemleri
+    description: Satıcının sipariş, mağaza ve iade yönetimi işlemleri
   - name: Cart
     description: Sepet işlemleri
   - name: Coupons
@@ -928,15 +928,6 @@ components:
       properties:
         password:
           type: string
-    ReturnedItem:
-      type: object
-      properties:
-        orderItemId:
-          type: string
-          description: "Order'daki orderItems dizisindeki ilgili ürünün _id'si"
-        quantity:
-          type: integer
-          description: "İade edilecek ürün adedi"
     ReturnRequest:
       type: object
       properties:
@@ -951,19 +942,18 @@ components:
         seller:
           type: string
           description: "İade edilen ürünün satıcısının ID'si"
-        returnedItems:
-          type: array
-          items:
-            $ref: '#/components/schemas/ReturnedItem'
+        product:
+          type: string
+          description: "İade edilen ürünün ID'si"
         reason:
           type: string
-          enum: [DEFECTIVE, WRONG_ITEM, NOT_AS_DESCRIBED, CHANGED_MIND, OTHER]
+          enum: [WRONG_SIZE, DAMAGED_PRODUCT, NOT_AS_DESCRIBED, CHANGED_MIND, DEFECTIVE, OTHER]
         customerComments:
           type: string
         status:
           type: string
-          enum: [PENDING, APPROVED, REJECTED, PROCESSING]
-          default: PENDING
+          enum: [PENDING_APPROVAL, APPROVED, REJECTED]
+          default: PENDING_APPROVAL
         sellerComments:
           type: string
         createdAt:
@@ -974,17 +964,15 @@ components:
           format: date-time
     CreateReturnRequestInput:
       type: object
-      required: [orderId, itemsToReturn, reason]
+      required: [orderId, productId, reason]
       properties:
         orderId:
           type: string
-        itemsToReturn:
-          type: array
-          items:
-            $ref: '#/components/schemas/ReturnedItem'
+        productId:
+          type: string
         reason:
           type: string
-          enum: [DEFECTIVE, WRONG_ITEM, NOT_AS_DESCRIBED, CHANGED_MIND, OTHER]
+          enum: [WRONG_SIZE, DAMAGED_PRODUCT, NOT_AS_DESCRIBED, CHANGED_MIND, DEFECTIVE, OTHER]
         customerComments:
           type: string
     UpdateReturnRequestInput:
@@ -1072,7 +1060,7 @@ paths:
           required: true
           schema:
             type: string
-          example: Ayakkabı
+            example: Ayakkabı
       responses:
         '200':
           description: İlgili kategorideki ürünler
@@ -1096,7 +1084,7 @@ paths:
           required: true
           schema:
             type: string
-          example: "Doe Shoes"
+            example: "Doe Shoes"
       responses:
         '200':
           description: İlgili mağazadaki ürünler
@@ -1570,7 +1558,7 @@ paths:
               $ref: '#/components/schemas/CreateReturnRequestInput'
       responses:
         '201':
-          description: İade talepleri başarıyla oluşturuldu.
+          description: İade talebi başarıyla oluşturuldu.
           content:
             application/json:
               schema:
@@ -1578,16 +1566,14 @@ paths:
                 properties:
                   message:
                     type: string
-                  createdRequests:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/ReturnRequest'
+                  data:
+                    $ref: '#/components/schemas/ReturnRequest'
         '400':
           description: Geçersiz istek (örn: sipariş teslim edilmemiş, iade süresi dolmuş).
         '401':
           description: Yetkisiz.
         '404':
-          description: Sipariş bulunamadı.
+          description: Sipariş veya ürün bulunamadı.
         '500':
           description: Sunucu hatası.
     get:
@@ -2596,7 +2582,7 @@ paths:
           description: Aranan ana ürünün adı
           schema:
             type: string
-          example: "Deri Spor Ayakkabı"
+            example: "Deri Spor Ayakkabı"
       responses:
         '200':
           description: Bulunan mağaza ürünü.
@@ -2636,7 +2622,68 @@ paths:
           description: Mağazanızda hiçbir ürün bulunmamaktadır.
         '500':
           description: Sunucu hatası.
-  /api/store/return-requests:
+  /api/store/orders:
+    get:
+      summary: Satıcının Kendi Siparişlerini Listele
+      description: "Giriş yapmış satıcının, kendi ürünlerini içeren tüm siparişleri listeler. Siparişler, oluşturulma tarihine göre en yeniden en eskiye doğru sıralanır."
+      tags: [Store]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Satıcının siparişleri başarıyla getirildi veya satıcının hiç ürünü yok.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/PopulatedOrder'
+                  - type: object
+                    properties:
+                      message:
+                        type: string
+                        example: "Bu satıcıya ait hiçbir ürün bulunmamaktadır"
+                      data:
+                        type: array
+                        items: {}
+                        example: []
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '500':
+          description: Sunucu hatası.
+  /api/store/orders/id/{id}:
+    get:
+      summary: Satıcının Belirli Bir Ürünü İçeren Siparişlerini Listele
+      description: "Giriş yapmış satıcının, ID'si belirtilen ürünü içeren tüm siparişleri listeler."
+      tags: [Store]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Siparişlerde aranacak ürünün ID'si
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Belirtilen ürünü içeren siparişlerin listesi.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PopulatedOrder'
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '500':
+          description: Sunucu hatası.
+  /api/store/orders/return-requests:
     get:
       summary: Satıcının iade taleplerini listeler
       description: "Giriş yapmış satıcının kendi ürünlerine ait tüm iade taleplerini listeler."
@@ -2658,7 +2705,7 @@ paths:
           description: Erişim yok (rol).
         '500':
           description: Sunucu hatası.
-  /api/store/return-requests/{id}:
+  /api/store/orders/return-requests/{id}:
     put:
       summary: Satıcının iade talebini günceller
       description: "Satıcının, belirtilen iade talebinin durumunu (onaylama/reddetme) güncellemesini sağlar."
@@ -2692,6 +2739,144 @@ paths:
           description: Erişim yok (rol).
         '404':
           description: İade talebi bulunamadı.
+        '500':
+          description: Sunucu hatası.
+  /api/store/products/sale/start-all:
+    post:
+      summary: Tüm ürünlere indirim uygula
+      description: "Satıcının mağazasındaki tüm ürünlere belirli bir yüzde ile indirim uygular."
+      tags: [Store]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaleInput'
+      responses:
+        '200':
+          description: İndirim başarıyla uygulandı.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Tüm ürünlere indirim başarıyla uygulandı!"
+        '400':
+          description: Geçersiz indirim oranı.
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '404':
+          description: Mağazada ürün bulunamadı.
+        '500':
+          description: Sunucu hatası.
+  /api/store/products/sale/stop-all:
+    post:
+      summary: Tüm ürünlerdeki indirimi kaldır
+      description: "Satıcının mağazasındaki tüm ürünlerden indirimi kaldırır."
+      tags: [Store]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: İndirimler başarıyla kaldırıldı.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "İndirimler başarıyla kaldırıldı. 5 ürün güncellendi."
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '404':
+          description: Mağazada ürün bulunamadı.
+        '500':
+          description: Sunucu hatası.
+  /api/store/products/{id}/sale/start:
+    put:
+      summary: Ürüne indirim uygula
+      description: "Satıcının, ID'si belirtilen ürününe belirli bir yüzde ile indirim başlatmasını sağlar."
+      tags: [Store]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaleInput'
+      responses:
+        '200':
+          description: İndirim başarıyla başlatıldı.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Ürün başarıyla indirime girdi."
+                  data:
+                    $ref: '#/components/schemas/StoreProductResponse'
+        '400':
+          description: Geçersiz indirim oranı.
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '404':
+          description: Ürün bulunamadı.
+        '500':
+          description: Sunucu hatası.
+  /api/store/products/{id}/sale/stop:
+    put:
+      summary: Üründeki indirimi kaldır
+      description: "Satıcının, ID'si belirtilen üründeki indirimi sonlandırmasını sağlar."
+      tags: [Store]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: İndirim başarıyla sonlandırıldı.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Ürün indirimden çıkarıldı"
+                  data:
+                    $ref: '#/components/schemas/StoreProductResponse'
+        '400':
+          description: Ürün zaten indirimde değil.
+        '401':
+          description: Yetkisiz.
+        '403':
+          description: Erişim yok (rol).
+        '404':
+          description: Ürün bulunamadı.
         '500':
           description: Sunucu hatası.
   /api/admin/users:
@@ -2792,7 +2977,7 @@ paths:
           required: true
           schema:
             type: string
-          example: ahmet@example.com
+            example: ahmet@example.com
       responses:
         "200":
           description: Kullanıcı bulundu
@@ -2842,7 +3027,7 @@ paths:
           required: true
           schema:
             type: string
-          example: 66bb1c2de6b0d3b5b2d7f111
+            example: 66bb1c2de6b0d3b5b2d7f111
       responses:
         "200":
           description: Kullanıcı
@@ -2869,7 +3054,7 @@ paths:
           required: true
           schema:
             type: string
-          example: 66bb1c2de6b0d3b5b2d7f111
+            example: 66bb1c2de6b0d3b5b2d7f111
       requestBody:
         required: true
         content:
@@ -2908,7 +3093,7 @@ paths:
           required: true
           schema:
             type: string
-          example: 66bb1c2de6b0d3b5b2d7f111
+            example: 66bb1c2de6b0d3b5b2d7f111
       responses:
         "200":
           description: Silme mesajı
@@ -3191,7 +3376,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [PENDING, APPROVED, REJECTED, PROCESSING]
+            enum: [PENDING_APPROVAL, APPROVED, REJECTED]
         - name: sellerId
           in: query
           schema:
@@ -3324,263 +3509,6 @@ paths:
           description: Yetkisiz.
         '404':
           description: Sipariş bulunamadı.
-        '500':
-          description: Sunucu hatası.
-  /api/store/orders:
-    get:
-      summary: Satıcının Kendi Siparişlerini Listele
-      description: "Giriş yapmış satıcının, kendi ürünlerini içeren tüm siparişleri listeler. Siparişler, oluşturulma tarihine göre en yeniden en eskiye doğru sıralanır."
-      tags: [Store]
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: Satıcının siparişleri başarıyla getirildi veya satıcının hiç ürünü yok.
-          content:
-            application/json:
-              schema:
-                oneOf:
-                  - type: array
-                    items:
-                      $ref: '#/components/schemas/PopulatedOrder'
-                  - type: object
-                    properties:
-                      message:
-                        type: string
-                        example: "Bu satıcıya ait hiçbir ürün bulunmamaktadır"
-                      data:
-                        type: array
-                        items: {}
-                        example: []
-        '401':
-          description: Yetkisiz.
-        '403':
-          description: Erişim yok (rol).
-        '500':
-          description: Sunucu hatası.
-  /api/store/orders/{id}:
-    get:
-      summary: Satıcının Belirli Bir Ürünü İçeren Siparişlerini Listele
-      description: "Giriş yapmış satıcının, ID'si belirtilen ürünü içeren tüm siparişleri listeler."
-      tags: [Store]
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: Siparişlerde aranacak ürünün ID'si
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Belirtilen ürünü içeren siparişlerin listesi.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/PopulatedOrder'
-        '401':
-          description: Yetkisiz.
-        '403':
-          description: Erişim yok (rol).
-        '500':
-          description: Sunucu hatası.
-  /api/store/return-requests:
-    get:
-      summary: Satıcının iade taleplerini listeler
-      description: "Giriş yapmış satıcının kendi ürünlerine ait tüm iade taleplerini listeler."
-      tags: [Store]
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: İade talepleri listesi.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ReturnRequest'
-        '401':
-          description: Yetkisiz.
-        '403':
-          description: Erişim yok (rol).
-        '500':
-          description: Sunucu hatası.
-  /api/store/return-requests/{id}:
-    put:
-      summary: Satıcının iade talebini günceller
-      description: "Satıcının, belirtilen iade talebinin durumunu (onaylama/reddetme) güncellemesini sağlar."
-      tags: [Store]
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateReturnRequestInput'
-      responses:
-        '200':
-          description: İade talebi başarıyla güncellendi.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ReturnRequest'
-        '400':
-          description: Geçersiz durum.
-        '401':
-          description: Yetkisiz.
-        '403':
-          description: Erişim yok (rol).
-        '404':
-          description: İade talebi bulunamadı.
-        '500':
-          description: Sunucu hatası.
-  /api/store/products/sale/start-all:
-    post:
-      summary: Tüm ürünlere indirim uygula
-      description: "Satıcının mağazasındaki tüm ürünlere belirli bir yüzde ile indirim uygular."
-      tags: [Store]
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SaleInput'
-      responses:
-        '200':
-          description: İndirim başarıyla uygulandı.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Tüm ürünlere indirim başarıyla uygulandı!"
-        '400':
-          description: Geçersiz indirim oranı.
-        '401':
-          description: Yetkisiz.
-        '403':
-          description: Erişim yok (rol).
-        '404':
-          description: Mağazada ürün bulunamadı.
-        '500':
-          description: Sunucu hatası.
-  /api/store/products/sale/stop-all:
-    post:
-      summary: Tüm ürünlerdeki indirimi kaldır
-      description: "Satıcının mağazasındaki tüm ürünlerden indirimi kaldırır."
-      tags: [Store]
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: İndirimler başarıyla kaldırıldı.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "İndirimler başarıyla kaldırıldı. 5 ürün güncellendi."
-        '401':
-          description: Yetkisiz.
-        '403':
-          description: Erişim yok (rol).
-        '404':
-          description: Mağazada ürün bulunamadı.
-        '500':
-          description: Sunucu hatası.
-  /api/store/products/{id}/sale/start:
-    put:
-      summary: Ürüne indirim uygula
-      description: "Satıcının, ID'si belirtilen ürününe belirli bir yüzde ile indirim başlatmasını sağlar."
-      tags: [Store]
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SaleInput'
-      responses:
-        '200':
-          description: İndirim başarıyla başlatıldı.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Ürün başarıyla indirime girdi."
-                  data:
-                    $ref: '#/components/schemas/StoreProductResponse'
-        '400':
-          description: Geçersiz indirim oranı.
-        '401':
-          description: Yetkisiz.
-        '403':
-          description: Erişim yok (rol).
-        '404':
-          description: Ürün bulunamadı.
-        '500':
-          description: Sunucu hatası.
-  /api/store/products/{id}/sale/stop:
-    put:
-      summary: Üründeki indirimi kaldır
-      description: "Satıcının, ID'si belirtilen üründeki indirimi sonlandırmasını sağlar."
-      tags: [Store]
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: İndirim başarıyla sonlandırıldı.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Ürün indirimden çıkarıldı"
-                  data:
-                    $ref: '#/components/schemas/StoreProductResponse'
-        '400':
-          description: Ürün zaten indirimde değil.
-        '401':
-          description: Yetkisiz.
-        '403':
-          description: Erişim yok (rol).
-        '404':
-          description: Ürün bulunamadı.
         '500':
           description: Sunucu hatası.
   /api/carts:

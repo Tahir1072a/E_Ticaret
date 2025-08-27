@@ -19,8 +19,10 @@ import {
   getAllCoupons,
 } from "../controllers/customerController.js";
 import { createReview } from "../controllers/reviewController.js";
-import { createReturnRequest } from "../controllers/orderControllers.js";
-import { getMyReturnRequests } from "../controllers/returnRequestController.js";
+import {
+  getMyReturnRequests,
+  createReturnRequest,
+} from "../controllers/returnRequestController.js";
 
 const router = express.Router();
 

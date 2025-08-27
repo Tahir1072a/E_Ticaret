@@ -2,9 +2,10 @@ import ReturnRequest from "../models/returnRequestModel.js";
 import Order from "../models/orderModel.js";
 import asyncHandler from "express-async-handler";
 import mongoose from "mongoose";
+import { StoreProduct } from "../models/storeProductModel.js";
 
 export const createReturnRequest = asyncHandler(async (req, res) => {
-  const { orderId, itemsToReturn, reason, customerComments } = req.body;
+  const { orderId, productId, reason, customerComments } = req.body;
 
   const order = await Order.findById(orderId).populate({
     path: "orderItems.product",
@@ -17,8 +18,9 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
   }
 
   if (!order.isDelivered || !order.deliveredAt) {
-    res.status(400);
-    throw new Error("Bu sipariş henüz teslim edilmemiş.");
+    return res
+      .status(400)
+      .json({ message: "Bu sipariş henüz teslim edilmemiş." });
   }
 
   const fifteenDaysAgo = new Date();
@@ -29,84 +31,30 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
     throw new Error("Yasal iade süresi (15 gün) dolmuştur.");
   }
 
-  const sellerGroupedItems = {};
+  const { product } = order.orderItems.find(function (oi) {
+    return oi.product._id.toString() === productId;
+  });
 
-  for (const item of itemsToReturn) {
-    const orderItem = order.orderItems.find(
-      (oi) => oi._id.toString() === item.orderItemId
-    );
-
-    if (!orderItem) {
-      res.status(400);
-      throw new Error(`Siparişte ${item.orderItemId} ID'li ürün bulunamadı.`);
-    }
-
-    const sellerId = orderItem.product.seller.toString();
-
-    if (!sellerGroupedItems[sellerId]) {
-      sellerGroupedItems[sellerId] = [];
-    }
-    sellerGroupedItems[sellerId].push(item);
-  }
-
-  const session = await mongoose.startSession();
-  try {
-    session.startTransaction();
-
-    const creationPromises = [];
-
-    for (const sellerId in sellerGroupedItems) {
-      const itemsForThisSeller = sellerGroupedItems[sellerId];
-
-      const currentRequestItemIds = itemsForThisSeller.map(
-        (item) => item.orderItemId
-      );
-
-      const existingRequest = await ReturnRequest.findOne({
-        order: orderId,
-        seller: sellerId,
-        status: { $nin: ["REJECTED", "APPROVED"] },
-        "returnedItems.orderItem": { $in: currentRequestItemIds },
-      });
-
-      if (existingRequest) {
-        continue;
-      }
-
-      const newReturnRequest = new ReturnRequest({
-        user: req.user.id,
-        order: orderId,
-        seller: sellerId,
-        returnedItems: itemsForThisSeller,
-        reason: reason,
-        customerComments: customerComments,
-      });
-
-      creationPromises.push(newReturnRequest.save({ session }));
-    }
-
-    if (creationPromises.length === 0) {
-      res.status(400);
-      throw new Error(
-        "Oluşturulacak geçerli bir iade talebi bulunamadı. Talepleriniz zaten işleme alınmış olabilir."
-      );
-    }
-
-    await session.commitTransaction();
-
-    const createdRequests = await Promise.all(creationPromises);
-    res.status(201).json({
-      message: "İade talepleriniz başarıyla oluşturuldu.",
-      createdRequests,
+  if (!product) {
+    return res.status(404).json({
+      message:
+        "İlgili siparişinizde iade etmek istediğiniz ürün bulunmamaktadır",
     });
-  } catch (err) {
-    await session.abortTransaction();
-
-    res.status(400);
-    throw new Error(`İade talebi oluşturulamadı: ${err.message}`);
-  } finally {
-    session.endSession();
   }
+
+  const newReturnRequest = await ReturnRequest.create({
+    seller: product.seller,
+    user: req.user._id,
+    order: orderId,
+    product: product._id,
+    reason: reason,
+    customerComments: customerComments,
+  });
+
+  res.status(201).json({
+    message: "İade talebiniz başarıyla oluşturulmuştur",
+    data: newReturnRequest,
+  });
 });
 
 export const getMyReturnRequests = asyncHandler(async (req, res) => {
@@ -128,7 +76,13 @@ export const getSellerReturnRequests = asyncHandler(async (req, res) => {
 export const updateReturnBySeller = asyncHandler(async (req, res) => {
   const { status, sellerComments } = req.body;
 
-  const request = await ReturnRequest.findById(req.params.id);
+  const request = await ReturnRequest.findById(req.params.id).populate({
+    path: "order",
+    populate: {
+      path: "orderItems",
+      select: "quantity",
+    },
+  });
 
   if (!request) {
     res.status(404);
@@ -140,15 +94,40 @@ export const updateReturnBySeller = asyncHandler(async (req, res) => {
   if (!allowedStatusUpdates.includes(status)) {
     res.status(400);
     throw new Error(
-      `Geçersiz durum: ${status}. Satıcılar sadece onay ceya red durumlarını ayarlayabilir.`
+      `Geçersiz durum: ${status}. Satıcılar sadece onay veya red durumlarını ayarlayabilir.`
     );
   }
 
   request.status = status;
   if (sellerComments) request.sellerComments = sellerComments;
 
-  const updatedRequest = await request.save();
-  res.status(200).json(updatedRequest);
+  const session = await mongoose.startSession();
+  try {
+    session.startTransaction();
+
+    if (status === "APPROVED") {
+      const { quantity } = request.order.orderItems.find((oi) => {
+        return oi.product.toString() === request.product.toString();
+      });
+
+      await StoreProduct.findByIdAndUpdate(
+        request.product,
+        {
+          $inc: { stock: Number(quantity) },
+        },
+        { session }
+      );
+    }
+    const updatedRequest = await request.save({ session });
+    await session.commitTransaction();
+
+    res.status(200).json(updatedRequest);
+  } catch (err) {
+    await session.abortTransaction();
+    res.status(500).json({ message: err.message });
+  } finally {
+    session.endSession();
+  }
 });
 
 // -------------------------------------------------------------------

@@ -1,21 +1,5 @@
 import mongoose from "mongoose";
 
-const returnedItemSchema = new mongoose.Schema({
-  orderItem: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: true,
-  },
-  product: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Product",
-    required: true,
-  },
-  quantity: {
-    type: Number,
-    required: true,
-  },
-});
-
 const returnRequestSchema = new mongoose.Schema(
   {
     seller: {
@@ -34,7 +18,11 @@ const returnRequestSchema = new mongoose.Schema(
       required: true,
       ref: "Order",
     },
-    returnedItems: [returnedItemSchema],
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      ref: "Product",
+    },
     reason: {
       type: String,
       required: true,
@@ -43,6 +31,7 @@ const returnRequestSchema = new mongoose.Schema(
         "DAMAGED_PRODUCT",
         "NOT_AS_DESCRIBED",
         "CHANGED_MIND",
+        "DEFECTIVE",
         "OTHER",
       ],
     },
