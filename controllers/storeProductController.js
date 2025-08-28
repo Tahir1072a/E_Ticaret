@@ -1,3 +1,6 @@
+import { StoreProduct } from "../models/storeProductModel.js";
+import mongoose from "mongoose";
+
 export const createStoreProduct = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();

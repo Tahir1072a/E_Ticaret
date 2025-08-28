@@ -93,12 +93,16 @@ export const confirmPayment = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user._id;
-    const order = await Order.findById(id).session(session);
+    const order = await Order.findOne({ _id: id, user: userId }).session(
+      session
+    );
 
     if (!order) {
+      await session.abortTransaction();
       return res.status(404).json({ message: "Böyle bir sipariş bulunamadı" });
     }
     if (order.isPaid) {
+      await session.abortTransaction();
       return res.status(400).json({ message: "Bu sipariş zaten ödenmiş" });
     }
 
@@ -138,11 +142,13 @@ export const confirmPayment = async (req, res) => {
       );
     }
 
-    order.isPaid = true;
-    order.paidAt = new Date();
-    const updatedOrder = await order.save();
+    const updatedOrder = await Order.findByIdAndUpdate(
+      id,
+      { isPaid: true, paidAt: new Date() },
+      { new: true, session: session }
+    );
 
-    await Cart.findOneAndDelete({ user: order.user }).session(session);
+    await Cart.findOneAndDelete({ user: userId }).session(session);
     await session.commitTransaction();
 
     res.status(200).json({
@@ -150,7 +156,10 @@ export const confirmPayment = async (req, res) => {
       data: updatedOrder,
     });
   } catch (err) {
+    await session.abortTransaction();
     res.status(500).json({ message: err.message });
+  } finally {
+    session.endSession();
   }
 };
 
