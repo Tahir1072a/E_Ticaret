@@ -35,8 +35,6 @@ export const updateMyProfile = async (req, res) => {
   }
 };
 
-// Siparişlerin teslim edilip edilmediğini burada onaylayacağız.
-
 export const updateOrderDeliveryAndPaid = async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -56,17 +54,13 @@ export const updateOrderDeliveryAndPaid = async (req, res) => {
         .josn({ message: "Bu ordera ait bir kayıt bulunamadı!" });
     }
 
-    if (String(status).toLowerCase === "yes") {
+    if (String(status).toLowerCase() === "yes") {
       order.isDelivered = true;
-      order.isPaid = true;
 
-      order.paidAt = new Date();
       order.deliveredAt = new Date();
     } else {
       order.isDelivered = false;
-      order.isDelivered = true;
-
-      order.isCanceled = false;
+      order.isCanceled = true;
     }
 
     const updatedOrder = await order.save();

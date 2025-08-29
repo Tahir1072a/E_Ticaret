@@ -6,7 +6,10 @@ import {
   getApplicationsByStatus,
 } from "../controllers/sellerApplicationController.js";
 import { protect, authorize } from "../middleware/authmiddleware.js";
-import { updateMyProfile } from "../controllers/adminController.js";
+import {
+  updateMyProfile,
+  updateOrderDeliveryAndPaid,
+} from "../controllers/adminController.js";
 import {
   getOrdersByRole,
   getOrdersByUserId,
@@ -29,6 +32,7 @@ router.get("/orders/id/:id", getOrdersByUserId);
 router.get("/orders/role/:role", getOrdersByRole);
 router.get("/orders/username/:username", getOrdersByUserName);
 router.get("/orders/return-request/all", getAllReturnRequests);
+router.post("/orders/update/delivery/:orderId", updateOrderDeliveryAndPaid);
 
 router.put("/me", updateMyProfile);
 
