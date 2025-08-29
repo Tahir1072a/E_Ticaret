@@ -142,6 +142,9 @@ export const confirmPayment = async (req, res) => {
       );
     }
 
+    // order.isPaid = True
+    //
+
     const updatedOrder = await Order.findByIdAndUpdate(
       id,
       { isPaid: true, paidAt: new Date() },
