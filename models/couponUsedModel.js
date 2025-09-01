@@ -23,7 +23,6 @@ const couponUsageSchema = new mongoose.Schema(
 
 couponUsageSchema.index({ user: 1, coupon: 1 }, { unique: 1 });
 
-// ElasticSearch sor Halit abiye,
 // await CouponUsage.find({ coupon: "ID_OF_A_POPULAR_COUPON" }) => hızlandırır
 couponUsageSchema.index({ coupon: 1 });
 

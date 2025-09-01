@@ -1,6 +1,13 @@
 import mongoose from "mongoose";
 import { priceHistoryEntrySchema } from "./commonSchemas.js";
-import { Client } from "@elastic/elasticsearch";
+import {
+  indexDocument,
+  deleteDocument,
+  BASEPRODUCT_INDEX,
+  STOREPRODUCT_INDEX,
+  esClient,
+} from "../services/elasticSearchServices.js";
+import { StoreProduct } from "./storeProductModel.js";
 
 const baseProductSchema = new mongoose.Schema({
   masterNumber: {
@@ -48,85 +55,94 @@ baseProductSchema.pre(/^find/, function (next) {
   next();
 });
 
-const esClient = new Client({ node: "http://localhost:9200" });
-
-const syncWithElasticSearch = async (docId, model) => {
-  try {
-    const docToSync = await model.findById(docId);
-
-    if (!docToSync) {
-      console.error(`Senkronizasyon için döküman bulunamadı: ${docId}`);
-      return;
-    }
-
-    const body = docToSync.toObject();
-
-    await esClient.index({
-      index: "baseproducts",
-      id: docToSync._id.toString(),
-      body: body,
-    });
-
-    console.log(`Doküman ${docId} başarıyla senkronize edildi.`);
-  } catch (err) {
-    console.error(`Elasticsearch senkronizasyon hatası: (${docId}):`, err);
-  }
-};
-
-const removeFromElasticSearch = async (docId) => {
-  try {
-    await esClient.delete({
-      index: "baseproducts",
-      id: docId.toString(),
-    });
-    console.log(`Döküman ${docId} indeksten başarıyla silindi`);
-  } catch (err) {
-    if (err.meta && err.meta.statusCode === 404) {
-      console.log(`Döküman ${docId} zaten indekste bulunmuyor`);
-      return;
-    }
-    console.error(`Elasticsearch silme hatası (${docId})`, err);
-  }
-};
-
 baseProductSchema.post("save", async function (doc) {
-  console.log("Post-save hook triggered for:", doc._id);
-  await syncWithElasticSearch(doc._id, this.constructor);
-});
-
-baseProductSchema.post("findOneAndUpdate", async function (doc) {
-  console.log("Post-findOneAndUpdate hook triggered for:", doc._id);
-  await syncWithElasticSearch(doc._id, this.model);
+  await indexDocument(BASEPRODUCT_INDEX, doc._id.toString(), doc.toObject());
 });
 
 baseProductSchema.post("findOneAndDelete", async function (doc) {
-  console.log("Post-findOneAndDelete hook triggered for:", doc._id);
-  await removeFromElasticSearch(doc._id);
+  if (!doc) return;
+
+  await deleteDocument(BASEPRODUCT_INDEX, doc._id.toString());
+  console.log(`BaseProduct (${doc._id}) kendi index'inden silindi.`);
+
+  const relatedStoreProducts = await StoreProduct.find({
+    baseProduct: doc._id,
+  });
+
+  if (relatedStoreProducts.length === 0) {
+    console.log("İlişkili StoreProduct bulunamadı");
+    return;
+  }
+
+  const bulkDeleteBody = relatedStoreProducts.flatMap((sp_doc) => [
+    { delete: { _index: STOREPRODUCT_INDEX, _id: sp_doc._id.toString() } },
+  ]);
+
+  try {
+    await esClient.bulk({ refresh: true, body: bulkDeleteBody });
+    console.log(
+      `${relatedStoreProducts.length} adet ilişkili StoreProduct Elasticsearch'ten başarıyla silindi.`
+    );
+  } catch (err) {
+    console.error(
+      "İlişkili StoreProduct'lar için ES'ten toplu silme hatası:",
+      err
+    );
+  }
 });
 
-baseProductSchema.post("updateMany", async function (result) {
-  const queryFilter = this.getQuery();
-  console.log(
-    `${result.modifiedCount} döküman güncellendi. Filtre:`,
-    queryFilter
+baseProductSchema.post("findOneAndUpdate", async function (doc) {
+  if (!doc) return;
+
+  await indexDocument(BASEPRODUCT_INDEX, doc._id.toString(), doc.toObject());
+
+  const updatePayload = this.getUpdate();
+  const updateFields = Object.keys(updatePayload.$set || {});
+  const fieldsRequiringCascade = ["masterName", "masterCategoryName"];
+  const needsCascade = updateFields.some((field) =>
+    fieldsRequiringCascade.includes(field)
   );
 
-  const updatedDocs = await this.model.find(queryFilter);
+  if (!needsCascade) {
+    console.log("Değişiklikler yayılma gerektirimiyor.");
+    return;
+  }
 
-  if (updatedDocs.length === 0) return;
+  const relatedStoreProducts = await StoreProduct.find({
+    baseProduct: doc._id,
+  }).populate("seller");
 
-  const body = updatedDocs.flatMap((doc) => [
-    { index: { _index: "baseproducts", _id: doc._id.toString() } },
-    doc.toObject(),
-  ]);
+  if (relatedStoreProducts.length === 0) return;
+
+  const body = relatedStoreProducts.flatMap((sp_doc) => {
+    const denormalized_body = {
+      description: sp_doc.description,
+      currentPrice: sp_doc.currentPrice,
+      stock: sp_doc.stock,
+      rating: sp_doc.rating,
+      createdAt: sp_doc.createdAt,
+      baseName: doc.masterName, // GÜNCELLENMİŞ VERİ
+      baseCategoryName: doc.masterCategoryName, // GÜNCELLENMİŞ VERİ
+      baseImage: doc.masterImage, // GÜNCELLENMİŞ VERİ
+      sellerName: sp_doc.seller?.storeName,
+    };
+
+    return [
+      { update: { _index: STOREPRODUCT_INDEX, _id: sp_doc._id.toString() } },
+      { doc: denormalized_body },
+    ];
+  });
 
   try {
     await esClient.bulk({ refresh: true, body });
     console.log(
-      `${updatedDocs.length} doküman başarıyla bulk olarak senkronize edildi.`
+      `${relatedStoreProducts.length} ilişkili StoreProduct başarıyla güncellendi.`
     );
   } catch (err) {
-    console.error("Elasticsearch bulk senkronizasyon hatası:", err);
+    console.error(
+      "İlişkili StoreProduct'lar için bulk güncelleme hatası:",
+      err
+    );
   }
 });
 

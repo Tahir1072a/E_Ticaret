@@ -1,7 +1,7 @@
-import { Client } from "@elastic/elasticsearch";
-import { StoreProduct } from "../models/storeProductModel.js";
-
-const client = new Client({ node: "http://localhost:9200" });
+import {
+  esClient,
+  STOREPRODUCT_INDEX,
+} from "../services/elasticSearchServices.js";
 
 export const searchProducts = async (req, res) => {
   try {
@@ -13,7 +13,7 @@ export const searchProducts = async (req, res) => {
         .json({ message: "Lütfen bir arama terimi giriniz." });
     }
 
-    const { body } = await client.search({
+    const { body } = await esClient.search({
       index: "baseproducts",
       body: {
         query: {
@@ -46,26 +46,36 @@ export const searchStoreProducts = async (req, res) => {
         .status(400)
         .json({ message: "Lütfen bir arama terimi giriniz." });
     }
-    // ARTIK BÖYLE ARAMA YAPIYORSUNUZ!
-    const searchResult = await StoreProduct.search({
-      multi_match: {
-        query: q,
-        fields: [
-          "description",
-          "baseProduct.masterName",
-          "baseProduct.masterCategoryName",
-          "seller.storeName",
-        ],
-        fuzziness: "AUTO",
+
+    const response = await esClient.search({
+      index: STOREPRODUCT_INDEX,
+      body: {
+        query: {
+          multi_match: {
+            query: q,
+            fields: [
+              "description",
+              "baseName",
+              "baseCategoryName",
+              "sellerName",
+            ],
+            fuzziness: "AUTO",
+          },
+        },
       },
-      hydrate: false, // Hydration'ı kapat
     });
-    // Sonuçlar doğrudan searchResult.hits.hits altında gelir.
-    const results = searchResult.hits.hits.map((hit) => hit._source);
+
+    const results = response.hits.hits.map((hit) => ({
+      id: hit._id,
+      ...hit._source,
+    }));
 
     res.status(200).json(results);
   } catch (err) {
-    console.error("ElasticSearch arama hatası", err);
+    console.error(
+      "ElasticSearch arama hatası:",
+      err.meta ? err.meta.body : err
+    );
     res.status(500).json({ message: "Arama sırasında bir hata oluştu" });
   }
 };
