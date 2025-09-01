@@ -352,19 +352,19 @@ export const openPackage = async (req, res) => {
 
 export const getWishlist = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id)
-      .populate({
-        path: "wishlist",
-        populate: {
+    const user = await User.findById(req.user._id).populate({
+      path: "wishlist",
+      populate: [
+        {
           path: "baseProduct",
-          select: "masterName",
+          select: "masterName masterImage",
         },
-        populate: {
+        {
           path: "seller",
-          select: "email, storeName",
+          select: "email username storeName",
         },
-      })
-      .lean();
+      ],
+    });
 
     res.status(200).json(user.wishlist);
   } catch (err) {
@@ -383,7 +383,7 @@ export const addToWishlist = async (req, res) => {
         .json({ message: "Herhangi bir ürün id'si göndermediniz" });
     }
 
-    const product = await StoreProduct.findById(id).lean();
+    const product = await StoreProduct.findById(productId).lean();
 
     if (!product) {
       return res

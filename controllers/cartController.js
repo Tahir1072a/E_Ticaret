@@ -15,7 +15,7 @@ export const getCart = async (req, res) => {
       populate: [
         {
           path: "baseProduct",
-          select: "masterName -_id",
+          select: "masterName masterImage -_id",
         },
         {
           path: "seller",

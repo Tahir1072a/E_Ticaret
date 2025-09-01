@@ -49,35 +49,6 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const esClient = new Client({ node: "http://localhost:9200" });
-
-orderSchema.post("save", async function (doc) {
-  try {
-    const populatedDoc = await doc.populate([
-      {
-        path: "user",
-        select: "-password -age",
-      },
-      {
-        path: "orderItems.product",
-        select: "description",
-        populate: {
-          path: "baseProduct",
-          select: "masterName masterCategopryItem",
-        },
-      },
-    ]);
-
-    await esClient.index({
-      index: "orders",
-      id: populatedDoc._id.toString(),
-      body: populatedDoc.toObject(),
-    });
-  } catch (err) {
-    console.error("Error indexing document to Elasticsearch:", err);
-  }
-});
-
 const Order = mongoose.model("Order", orderSchema);
 
 export default Order;

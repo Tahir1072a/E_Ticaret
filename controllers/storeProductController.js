@@ -113,7 +113,7 @@ export const getAllStoreProduct = async (req, res) => {
   try {
     const sellerId = req.user._id;
     const products = await StoreProduct.find({ seller: sellerId })
-      .populate("baseProduct", "masterName productType masterPrice")
+      .populate("baseProduct")
       .lean();
 
     if (!products) {
@@ -186,7 +186,7 @@ export const updateStoreProduct = async (req, res) => {
     const sellerId = req.user._id;
     const { baseProductId } = req.body;
 
-    const { currentPrice, quantity, ...otherUpdateData } = req.body;
+    const { price: currentPrice, quantity, ...otherUpdateData } = req.body;
 
     const product = await StoreProduct.findOne({
       _id: id,
@@ -214,7 +214,7 @@ export const updateStoreProduct = async (req, res) => {
     const updatePayload = { $set: otherUpdateData };
 
     if (currentPrice && currentPrice !== product.currentPrice) {
-      updatePayload.currentPrice = currentPrice;
+      updatePayload.$set.currentPrice = currentPrice;
 
       updatePayload.$push = {
         priceHistory: { price: currentPrice, user: sellerId },
@@ -228,7 +228,7 @@ export const updateStoreProduct = async (req, res) => {
     ).lean();
 
     return res.status(200).json({
-      message: `${product.baseProduct.masterName} başarıyla güncellendi.`,
+      message: `${updatedStoreProduct._id} başarıyla güncellendi.`,
       data: updatedStoreProduct,
     });
   } catch (err) {

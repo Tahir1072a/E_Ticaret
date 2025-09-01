@@ -1,6 +1,5 @@
 import mongoose, { Mongoose } from "mongoose";
 import { addressSchema } from "./commonSchemas.js";
-import mongoosastic from "mongoosastic";
 
 const userSchema = new mongoose.Schema(
   {
@@ -62,11 +61,6 @@ const userSchema = new mongoose.Schema(
 userSchema.pre(/^find/, function (next) {
   this.where({ isActive: true });
   next();
-});
-
-userSchema.plugin(mongoosastic, {
-  es_host: "localhost",
-  es_port: 9200,
 });
 
 export const User = mongoose.model("User", userSchema);
