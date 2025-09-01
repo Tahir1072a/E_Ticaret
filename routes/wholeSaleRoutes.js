@@ -25,13 +25,13 @@ router.delete("/", authorize("Admin"), getAllBaseProduct);
 
 router.get("/name/:name", authorize("Seller", "Admin"), getBaseProductByName);
 
-router.put("/", authorize("Admin"), updateBaseProductById);
+router.put("/:id", authorize("Admin"), updateBaseProductById);
 
 router.get("/:id", authorize("Seller", "Admin"), getBaseProductById);
 
 router.put(
   "/:id/image",
-  authorize("admin"),
+  authorize("Admin"),
   upload.single("productImage"),
   uploadBaseProductImage
 );

@@ -18,8 +18,10 @@ import cors from "cors";
 import swaggerUi from "swagger-ui-express";
 
 import YAML from "yamljs";
+import { StoreProduct } from "./models/storeProductModel.js";
+import { Client } from "@elastic/elasticsearch";
 
-// İade formu oluştur.
+// Seller indirimleri hesaplanmıyor. İndiirm hesaplmaa konusunu kapsamlı bir şekilde ele al!!
 const app = express();
 
 app.use(express.json());
@@ -29,23 +31,81 @@ app.use(cors()); // Tüm corslara izin ver...
 
 const PORT = 3000;
 
+const esClient = new Client({ node: "http://localhost:9200" });
+
+async function syncData() {
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("MongoDB veritabanına başarıyla bağlandı.");
+
+    console.log('Mevcut "storeproducts" indeksi siliniyor (varsa)...');
+    // Başlamadan önce indeksi temizlemek, tekrar tekrar çalıştırıldığında dublicate veriyi önler.
+    await esClient.indices.delete({
+      index: "storeproducts",
+      ignore_unavailable: true,
+    });
+
+    console.log("MongoDB'den tüm StoreProduct verileri çekiliyor...");
+    const allProducts = await StoreProduct.find({});
+
+    if (allProducts.length === 0) {
+      console.log("Aktarılacak ürün bulunamadı.");
+      return;
+    }
+
+    console.log(
+      `${allProducts.length} adet ürün bulundu. Elasticsearch\'e toplu aktarım başlıyor...`
+    );
+
+    // Elasticsearch Bulk API'si için verileri formatla
+    const body = allProducts.flatMap((doc) => {
+      // 1. doc.toObject() ile objeyi al, içinden _id'yi ayrı bir değişkene, geri kalan her şeyi "documentBody" içine ata.
+      const { _id, ...documentBody } = doc.toObject();
+
+      // 2. Bulk API'ye metadata için _id'yi, içerik için ise _id'siz olan documentBody'yi gönder.
+      return [
+        { index: { _index: "storeproducts", _id: _id.toString() } },
+        documentBody,
+      ];
+    });
+
+    const bulkResponse = await esClient.bulk({ refresh: true, body });
+
+    if (bulkResponse.errors) {
+      console.error("Toplu aktarım sırasında hatalar oluştu.");
+      // Hataları daha detaylı görmek isterseniz:
+      const erroredDocuments = [];
+      bulkResponse.items.forEach((action, i) => {
+        const operation = Object.keys(action)[0];
+        if (action[operation].error) {
+          erroredDocuments.push({
+            status: action[operation].status,
+            error: action[operation].error,
+            document: body[i * 2 + 1],
+          });
+        }
+      });
+      console.log(
+        "Hatalı dökümanlar:",
+        JSON.stringify(erroredDocuments, null, 2)
+      );
+    } else {
+      console.log("Tüm veriler başarıyla Elasticsearch'e aktarıldı!");
+    }
+  } catch (error) {
+    console.error("Senkronizasyon sırasında bir hata oluştu:", error);
+  } finally {
+    await mongoose.disconnect();
+    console.log("MongoDB bağlantısı kapatıldı.");
+  }
+}
+
+// syncData();
+
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
-    console.log("MongoDB veritabanına başarıyla bağlandı.");
-
-    // Geçici bir elastich search için kod:
-    // const stream = BaseProduct.synchronize();
-    // let count = 0;
-    // stream.on("data", function (err, doc){
-    //   count++;
-    // })
-    // stream.on("close", function(){
-    //   console.log(`[Mongoosastic] Veritabanındaki ${count} adet BaseProduct başarıyla indexlendi.`);
-    // })
-    // stream.on("error", function(err){
-    //   console.error("[Mongoosastic] Indexleme sırasında hata oluştu:", err);
-    // })
+    console.log("MongoDB bağlantısı başarıyla bağlantı sağlandı");
   })
   .catch((err) => {
     console.error("Veritabanı bağlantı hatası:", err);

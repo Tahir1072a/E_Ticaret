@@ -90,7 +90,7 @@ export const getBaseProductByName = async (req, res) => {
 export const updateBaseProductById = async (req, res) => {
   try {
     const { id } = req.params;
-    const { currentPrice, ...otherUpdateData } = req.body;
+    const { masterPrice, ...otherUpdateData } = req.body;
 
     const baseProduct = await BaseProduct.findById(id);
 
@@ -100,13 +100,12 @@ export const updateBaseProductById = async (req, res) => {
       });
     }
 
-    updatePayload = { ...otherUpdateData };
-
-    if (currentPrice && currentPrice !== baseProduct.currentPrice) {
-      updatePayload.currentPrice = currentPrice;
+    const updatePayload = { ...otherUpdateData };
+    if (masterPrice && masterPrice !== baseProduct.masterPrice) {
+      updatePayload.masterPrice = masterPrice;
 
       updatePayload.$push = {
-        masterPriceHistory: { price: currentPrice },
+        masterPriceHistory: { price: masterPrice, user: req.user._id },
       };
     }
 
@@ -114,7 +113,7 @@ export const updateBaseProductById = async (req, res) => {
       id,
       updatePayload,
       { new: true }
-    ).lean();
+    );
 
     return res.status(200).json({
       message: "Ürün başarıyla güncellendi",

@@ -46,7 +46,7 @@ export const searchStoreProducts = async (req, res) => {
         .json({ message: "Lütfen bir arama terimi giriniz." });
     }
 
-    const { body } = await client.search({
+    const searchResponse = await client.search({
       index: "storeproducts",
       body: {
         query: {
@@ -64,7 +64,8 @@ export const searchStoreProducts = async (req, res) => {
       },
     });
 
-    const results = body.hits.hits.map((hit) => hit._source);
+    const results = searchResponse.hits.hits.map((hit) => hit._source);
+
     res.status(200).json(results);
   } catch (err) {
     console.error(

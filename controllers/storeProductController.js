@@ -1,5 +1,6 @@
 import { StoreProduct } from "../models/storeProductModel.js";
 import mongoose from "mongoose";
+import { BaseProduct } from "../models/baseProductModel.js";
 
 export const createStoreProduct = async (req, res) => {
   const session = await mongoose.startSession();

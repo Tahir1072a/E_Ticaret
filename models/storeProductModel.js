@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { priceHistoryEntrySchema } from "./commonSchemas.js";
 import { Client } from "@elastic/elasticsearch";
+import mongoosastic from "mongoosastic";
 
 const storeProductSchema = new mongoose.Schema(
   {
@@ -59,26 +60,72 @@ storeProductSchema.pre(/^find/, function (next) {
 
 const esClient = new Client({ node: "http://localhost:9200" });
 
-storeProductSchema.post("save", async function (doc) {
+const syncWithElasticSearch = async (docId) => {
   try {
-    const populatedDoc = await doc.populate([
-      {
-        path: "baseProduct",
-        select: "masterName masterCategoryName",
-      },
-      {
-        path: "seller",
-        select: "storeName",
-      },
-    ]);
+    const docToSync = await StoreProduct.findById(docId)
+      .populate("seller")
+      .populate("baseProduct");
+
+    if (!docToSync) {
+      console.error(`Senkronizasyon için döküman bulunamadı: ${docId}`);
+      return;
+    }
+
+    const body = docToSync.toObject();
 
     await esClient.index({
-      index: "storeProduct",
-      id: populatedDoc._id.toString(),
-      body: populatedDoc.toObject(),
+      index: "storeproducts",
+      id: docToSync._id.toString(),
+      body: body,
     });
+
+    console.log(`Doküman ${docId} başarıyla senkronize edildi.`);
   } catch (err) {
-    console.error("Error indexing document to Elasticsearch:", err);
+    console.error(`Elasticsearch senkronizasyon hatası: (${docId}):`, err);
+  }
+};
+
+const removeFromElasticSearch = async (docId) => {
+  try {
+    await esClient.delete({
+      index: "storeproducts",
+      id: docId.toString(),
+    });
+    console.log(`Döküman ${docId} indeksten başarıyla silindi`);
+  } catch (err) {
+    if (err.meta && err.meta.statusCode === 404) {
+      console.log(`Döküman ${docId} zaten indekste bulunmuyor`);
+      return;
+    }
+    console.error(`Elasticsearch silme hatası (${docId})`, err);
+  }
+};
+
+storeProductSchema.post("save", async function (doc) {
+  console.log("Post-save hook triggered for:", doc._id);
+  await syncWithElasticSearch(doc._id);
+});
+
+storeProductSchema.post("findOneAndUpdate", async function (doc) {
+  console.log("Post-findOneAndUpdate hook triggered for:", doc._id);
+  await syncWithElasticSearch(doc._id);
+});
+
+storeProductSchema.post("findOneAndDelete", async function (doc) {
+  console.log("Post-findOneAndDelete hook triggered for:", doc._id);
+  await removeFromElasticSearch(doc._id);
+});
+
+storeProductSchema.post("updateMany", async function (result) {
+  const queryFilter = this.getQuery();
+  console.log(
+    `${result.modifiedCount} döküman güncellendi. Filtre:`,
+    queryFilter
+  );
+
+  const updatedDocs = await this.model.find(queryFilter);
+  for (const doc of updatedDocs) {
+    await syncWithElasticSearch(doc._id);
   }
 });
 

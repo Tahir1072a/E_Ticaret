@@ -1,6 +1,7 @@
 import { Seller, User } from "../models/usersModel.js";
 import Order from "../models/orderModel.js";
 import MasterCoupon, { SpecificCoupon } from "../models/couponModel.js";
+import { StoreProduct } from "../models/storeProductModel.js";
 
 export const getAllSeller = async (req, res) => {
   try {
@@ -358,6 +359,10 @@ export const getWishlist = async (req, res) => {
           path: "baseProduct",
           select: "masterName",
         },
+        populate: {
+          path: "seller",
+          select: "email, storeName",
+        },
       })
       .lean();
 
@@ -371,6 +376,21 @@ export const addToWishlist = async (req, res) => {
   try {
     const id = req.user._id;
     const { productId } = req.body;
+
+    if (!productId) {
+      return res
+        .status(400)
+        .json({ message: "Herhangi bir ürün id'si göndermediniz" });
+    }
+
+    const product = await StoreProduct.findById(id).lean();
+
+    if (!product) {
+      return res
+        .status(404)
+        .json({ message: `${productId} değerine sahip bir ürün bulunamadı` });
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       id,
       {
