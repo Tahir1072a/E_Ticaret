@@ -18,7 +18,7 @@ import cors from "cors";
 import swaggerUi from "swagger-ui-express";
 
 import YAML from "yamljs";
-import { runMigration } from "./utils/migrateData.js";
+// import { runMigration } from "./utils/migrateData.js";
 
 // Seller indirimleri hesaplanmıyor. İndirim hesaplama konusunu kapsamlı bir şekilde ele al!!
 const app = express();

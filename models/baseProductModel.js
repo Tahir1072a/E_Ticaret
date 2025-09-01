@@ -121,9 +121,11 @@ baseProductSchema.post("findOneAndUpdate", async function (doc) {
       stock: sp_doc.stock,
       rating: sp_doc.rating,
       createdAt: sp_doc.createdAt,
-      baseName: doc.masterName, // GÜNCELLENMİŞ VERİ
-      baseCategoryName: doc.masterCategoryName, // GÜNCELLENMİŞ VERİ
-      baseImage: doc.masterImage, // GÜNCELLENMİŞ VERİ
+
+      masterName: doc.masterName, // GÜNCELLENMİŞ VERİ
+      masterCategoryName: doc.masterCategoryName, // GÜNCELLENMİŞ VERİ
+      masterImage: doc.masterImage, // GÜNCELLENMİŞ VERİ
+
       sellerName: sp_doc.seller?.storeName,
     };
 

@@ -34,8 +34,9 @@ export const runMigration = async () => {
       body: {
         mappings: {
           properties: {
-            baseName: { type: "text" },
-            baseCategoryName: { type: "text" },
+            masterName: { type: "text" },
+            masterCategoryName: { type: "text" },
+            masterImage: { type: "text" },
             sellerName: { type: "text" },
             description: { type: "text" },
             currentPrice: { type: "float" },
@@ -75,9 +76,9 @@ export const runMigration = async () => {
         stock: doc.stock,
         rating: doc.rating,
         createdAt: doc.createdAt,
-        baseName: doc.baseProduct?.masterName,
-        baseCategoryName: doc.baseProduct?.masterCategoryName,
-        baseImage: doc.baseProduct?.masterImage,
+        masterName: doc.baseProduct?.masterName,
+        masterCategoryName: doc.baseProduct?.masterCategoryName,
+        masterImage: doc.baseProduct?.masterImage,
         sellerName: doc.seller?.storeName,
       };
       batch.push(denormalizedBody);

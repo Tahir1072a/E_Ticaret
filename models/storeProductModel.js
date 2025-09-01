@@ -79,8 +79,9 @@ const syncStoreProductToES = async (docId) => {
       rating: docToSync.rating,
       createdAt: docToSync.createdAt,
 
-      baseName: docToSync.baseProduct?.masterName,
-      baseCategoryName: docToSync.baseProduct?.masterCategoryName,
+      masterName: docToSync.baseProduct?.masterName,
+      masterCategoryName: docToSync.baseProduct?.masterCategoryName,
+      masterImage: docToSync.baseProduct?.masterImage,
 
       sellerName: docToSync.seller?.storeName,
     };
