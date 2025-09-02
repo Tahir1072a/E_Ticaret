@@ -71,6 +71,8 @@ export const addItemToCart = async (req, res) => {
         product: productId,
         quantity: quantity,
         price: product.currentPrice,
+        onSale: product.onSale,
+        salePrice: product.salePrice,
       });
     }
 

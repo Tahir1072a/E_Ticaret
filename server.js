@@ -18,9 +18,8 @@ import cors from "cors";
 import swaggerUi from "swagger-ui-express";
 
 import YAML from "yamljs";
-// import { runMigration } from "./utils/migrateData.js";
+import { runMasterProductMigration } from "./utils/migrateData.js";
 
-// Seller indirimleri hesaplanmıyor. İndirim hesaplama konusunu kapsamlı bir şekilde ele al!!
 const app = express();
 
 app.use(express.json());
@@ -29,7 +28,7 @@ app.use(express.static("public"));
 app.use(cors()); // Tüm corslara izin ver...
 
 const PORT = 3000;
-
+// runMasterProductMigration();
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {

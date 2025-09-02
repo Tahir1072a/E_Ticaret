@@ -1,17 +1,19 @@
 // import mongoose from "mongoose";
 import dotenv from "dotenv";
 import {
+  BASEPRODUCT_INDEX,
   STOREPRODUCT_INDEX,
   esClient,
 } from "../services/elasticSearchServices.js";
 import { StoreProduct } from "../models/storeProductModel.js";
 import mongoose from "mongoose";
+import { BaseProduct } from "../models/baseProductModel.js";
 
 dotenv.config();
 
 const BATCH_SIZE = 500; // Her bulk isteğinde kaç doküman gönderilecek
 
-export const runMigration = async () => {
+export const runStoreProductMigration = async () => {
   console.log("Veri aktarımı script'i başlatılıyor...");
 
   // 1. Veritabanı bağlantısı
@@ -37,7 +39,7 @@ export const runMigration = async () => {
             masterName: { type: "text" },
             masterCategoryName: { type: "text" },
             masterImage: { type: "text" },
-            sellerName: { type: "text" },
+            storeName: { type: "text" },
             description: { type: "text" },
             currentPrice: { type: "float" },
             rating: { type: "float" },
@@ -79,7 +81,7 @@ export const runMigration = async () => {
         masterName: doc.baseProduct?.masterName,
         masterCategoryName: doc.baseProduct?.masterCategoryName,
         masterImage: doc.baseProduct?.masterImage,
-        sellerName: doc.seller?.storeName,
+        storeName: doc.seller?.storeName,
       };
       batch.push(denormalizedBody);
 
@@ -107,6 +109,108 @@ export const runMigration = async () => {
     console.error("Veri aktarımı sırasında bir hata oluştu:", error);
   } finally {
     // 6. Veritabanı bağlantısını kapat
+    await mongoose.connection.close();
+    console.log("MongoDB bağlantısı kapatıldı.");
+  }
+};
+
+export const runMasterProductMigration = async () => {
+  console.log("Veri aktarım scripti başlatılıyor...");
+
+  await mongoose.connect(process.env.MONGO_URI);
+  console.log("MongoDB bağlantısı sağlandı");
+
+  try {
+    console.log(`Mevcut ${BASEPRODUCT_INDEX} indexi siliniyor.`);
+    await esClient.indices.delete({
+      index: BASEPRODUCT_INDEX,
+      ignore_unavailable: true,
+    });
+    console.log("Index başarıyla silindi");
+
+    await esClient.indices.create({
+      index: BASEPRODUCT_INDEX,
+      body: {
+        mappings: {
+          properties: {
+            masterName: { type: "text" },
+            masterCategoryName: { type: "text" },
+            masterImage: { type: "text" },
+            masterPrice: { type: "float" },
+            masterPriceHistory: {
+              type: "nested",
+              properties: {
+                price: { type: "float" },
+                date: { type: "date" },
+                user: { type: "text" },
+              },
+            },
+            masterDate: { type: "date" },
+            masterCategoryName: { type: "text" },
+            masterStock: { type: "float" },
+            masterCategoryNumber: { type: "float" },
+          },
+        },
+      },
+    });
+    console.log("Yeni index mapping ile oluşturuldu");
+
+    const cursor = BaseProduct.find({ isActive: true })
+      .populate({
+        path: "masterPriceHistory",
+        populate: [
+          {
+            path: "user",
+          },
+        ],
+      })
+      .cursor();
+
+    let batch = [];
+    let totalDocs = 0;
+
+    console.log("Dökümanlar okunuyor ve index'leniyor");
+
+    for (
+      let doc = await cursor.next();
+      doc != null;
+      doc = await cursor.next()
+    ) {
+      batch.push({
+        index: { _index: BASEPRODUCT_INDEX, _id: doc._id.toString() },
+      });
+
+      const denormalizedBody = {
+        masterName: doc.masterName,
+        masterCategoryName: doc.masterCategoryName,
+        masterImage: doc.masterImage,
+        masterPrice: doc.masterPrice,
+        masterPriceHistory: doc.masterPriceHistory,
+        masterDate: doc.masterDate,
+        masterStock: doc.masterStock,
+        masterCategoryNumber: doc.masterCategoryNumber,
+      };
+      batch.push(denormalizedBody);
+
+      if (batch.length >= BATCH_SIZE * 2) {
+        await esClient.bulk({ refresh: false, body: batch });
+        totalDocs += batch.length / 2;
+        console.log(`${totalDocs} döküman index'lendi`);
+        batch = [];
+      }
+    }
+
+    if (batch.length > 0) {
+      await esClient.bulk({ refresh: false, body: batch });
+      totalDocs += batch.length / 2;
+      console.log(`Kalan ${batch.length / 2} doküman index'lendi.`);
+    }
+    console.log(
+      `\n🎉 Toplam ${totalDocs} doküman başarıyla Elasticsearch'e aktarıldı!`
+    );
+  } catch (err) {
+    console.error("Veri aktarımı sırasında bir hata oluştu:", err);
+  } finally {
     await mongoose.connection.close();
     console.log("MongoDB bağlantısı kapatıldı.");
   }

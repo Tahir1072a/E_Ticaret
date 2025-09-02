@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: E-Ticaret API
-  version: 1.1.7
+  version: 1.2.0
   description: Base Product, Admin User, Seller Application, Order, Cart, Auth ve Return Request uçları
 servers:
   - url: http://localhost:3000
@@ -13,8 +13,8 @@ tags:
     description: Kullanıcı kimlik doğrulama ve şifre işlemleri
   - name: Customers
     description: Müşteri profil, adres, sipariş, favori ve iade işlemleri
-  - name: BaseProducts
-    description: Toptan ürün (Base Product) yönetimi
+  - name: Wholesale (Base Products)
+    description: Toptan ürün (Base Product) yönetimi (Admin ve Satıcılar için)
   - name: StoreProducts
     description: Satıcının kendi mağaza ürünlerini yönetme işlemleri
   - name: SellerApplications
@@ -91,6 +91,38 @@ components:
           default: true
         masterImage:
           type: string
+          example: "/uploads/image-1678886400000.jpg"
+    CreateBaseProductInput:
+      type: object
+      required:
+        - masterNumber
+        - masterName
+        - masterPrice
+        - masterCategoryNumber
+        - masterCategoryName
+      properties:
+        masterNumber:
+          type: string
+          example: "MAT-100245"
+        masterName:
+          type: string
+          example: "Deri Spor Ayakkabı"
+        masterPrice:
+          type: number
+          example: 1299.90
+        masterStock:
+          type: integer
+          example: 10000
+        masterDate:
+          type: string
+          format: date-time
+          example: "2025-08-13T12:21:00.000Z"
+        masterCategoryNumber:
+          type: string
+          example: "CAT-01"
+        masterCategoryName:
+          type: string
+          example: "Ayakkabı"
     UpdateBaseProductInput:
       type: object
       properties:
@@ -98,8 +130,12 @@ components:
           type: string
         masterPrice:
           type: number
-        masterCategory:
+        masterCategoryName:
           type: string
+        masterCategoryNumber:
+          type: string
+        masterStock:
+          type: integer
     PublicProductResponse:
       type: object
       properties:
@@ -596,8 +632,10 @@ components:
             $ref: "#/components/schemas/CartItem"
         subTotal:
           type: number
+          default: 0
         total:
           type: number
+          default: 0
         appliedCoupon:
           type: string
     PopulatedCartItem:
@@ -624,6 +662,9 @@ components:
                 masterName:
                   type: string
                   example: "Deri Spor Ayakkabı"
+                masterImage:
+                  type: string
+                  example: "/uploads/image-123.jpg"
             seller:
               type: object
               properties:
@@ -662,8 +703,8 @@ components:
         message:
           type: string
           example: "Ürün sepetten kaldırıldı"
-        cart:
-          $ref: '#/components/schemas/PopulatedCart'
+        removedCart:
+          $ref: '#/components/schemas/Cart'
     RegisterUserInput:
       type: object
       required: [email, username, password, name, surname]
@@ -2027,7 +2068,7 @@ paths:
   /api/search/base-products:
     get:
       summary: Toptan ürünlerde arama yapar
-      description: "Verilen bir arama terimi (`q`) ile toptan ürünlerin (`BaseProduct`) adında arama yapar."
+      description: "Verilen bir arama terimi (`q`) ile toptan ürünlerin (`BaseProduct`) adında ve kategori adında arama yapar."
       tags: [Search]
       parameters:
         - name: q
@@ -2044,12 +2085,22 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/BaseProduct'
+        '400':
+          description: Arama terimi girilmedi.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Lütfen bir arama terimi giriniz."
         '500':
           description: Sunucu hatası.
   /api/search/store-products:
     get:
       summary: Mağaza ürünlerinde arama yapar
-      description: "Verilen bir arama terimi (`q`) ile mağaza ürünlerinin (`StoreProduct`) ana ürün adında veya açıklamasında arama yapar."
+      description: "Verilen bir arama terimi (`q`) ile mağaza ürünlerinin (`StoreProduct`) açıklamasında, ana ürün adında, kategori adında veya satıcı adında arama yapar."
       tags: [Search]
       parameters:
         - name: q
@@ -2066,6 +2117,16 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/PublicProductResponse'
+        '400':
+          description: Arama terimi girilmedi.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Lütfen bir arama terimi giriniz."
         '500':
           description: Sunucu hatası.
   /api/search/users:
@@ -2105,10 +2166,10 @@ paths:
           description: Sunucu hatası.
   /api/wholesale:
     post:
-      summary: Yeni bir base product oluşturur
+      summary: Yeni bir toptan ürün (base product) oluşturur
       description: Sadece **Admin** rolüne sahip kullanıcılar yeni bir ana ürün oluşturabilir.
       tags:
-        - BaseProducts
+        - Wholesale (Base Products)
       security:
         - bearerAuth: []
       requestBody:
@@ -2116,30 +2177,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - masterNumber
-                - masterName
-                - masterPrice
-                - masterDate
-                - masterCategory
-              properties:
-                masterNumber:
-                  type: string
-                  example: MAT-100245
-                masterName:
-                  type: string
-                  example: Deri Spor Ayakkabı
-                masterPrice:
-                  type: number
-                  example: 1299.90
-                masterDate:
-                  type: string
-                  format: date-time
-                  example: "2025-08-13T12:21:00.000Z"
-                masterCategory:
-                  type: string
-                  example: Ayakkabı
+              $ref: '#/components/schemas/CreateBaseProductInput'
       responses:
         "201":
           description: Base product başarıyla oluşturuldu.
@@ -2153,16 +2191,16 @@ paths:
                   data:
                     $ref: '#/components/schemas/BaseProduct'
         "401":
-          description: Kimlik doğrulama başarısız.
+          description: Yetkisiz.
         "403":
-          description: Bu işlem için yetki yok.
+          description: Bu işlem için yetki yok (Rol).
         "500":
           description: Sunucu hatası
     get:
-      summary: Tüm base product'ları listeler
-      description: "**Seller** ve **Admin** rollerine sahip kullanıcılar erişebilir."
+      summary: Tüm aktif toptan ürünleri (base product) listeler
+      description: "Sistemdeki tüm aktif (`isActive: true`) toptan ürünleri listeler. **Seller** ve **Admin** rollerine sahip kullanıcılar erişebilir."
       tags:
-        - BaseProducts
+        - Wholesale (Base Products)
       security:
         - bearerAuth: []
       responses:
@@ -2175,14 +2213,16 @@ paths:
                 items:
                   $ref: '#/components/schemas/BaseProduct'
         "401":
-          description: Kimlik doğrulama başarısız.
+          description: Yetkisiz.
         "403":
-          description: Bu işlem için yetki yok.
+          description: Bu işlem için yetki yok (Rol).
+        "404":
+          description: Ürün bulunamadı.
   /api/wholesale/import:
     get:
       summary: Harici API'den toptan ürünleri içe aktarır
       description: "Harici bir SAP API'sinden ürün verilerini çeker ve mevcut değilse veritabanına yeni `BaseProduct` olarak ekler. Kimlik doğrulaması gerektirir."
-      tags: [BaseProducts]
+      tags: [Wholesale (Base Products)]
       security:
         - bearerAuth: []
       responses:
@@ -2210,9 +2250,9 @@ paths:
           description: Sunucu hatası.
   /api/wholesale/{id}:
     get:
-      summary: ID'ye göre bir base product getirir
+      summary: ID'ye göre bir toptan ürün (base product) getirir
       description: "**Seller** ve **Admin** rollerine sahip kullanıcılar erişebilir."
-      tags: [BaseProducts]
+      tags: [Wholesale (Base Products)]
       security:
         - bearerAuth: []
       parameters:
@@ -2231,15 +2271,15 @@ paths:
         '401':
           description: Yetkisiz.
         '403':
-          description: Erişim yok.
+          description: Erişim yok (Rol).
         '404':
           description: Ürün bulunamadı.
         '500':
           description: Sunucu hatası.
     put:
-      summary: ID'ye göre bir base product günceller
-      description: Sadece **Admin** rolü güncelleyebilir. Fiyat güncellenirse, eski fiyat `masterPriceHistory` dizisine eklenir.
-      tags: [BaseProducts]
+      summary: ID'ye göre bir toptan ürün (base product) günceller
+      description: "Sadece **Admin** rolü güncelleyebilir. Fiyat güncellenirse, eski fiyat `masterPriceHistory` dizisine eklenir."
+      tags: [Wholesale (Base Products)]
       security:
         - bearerAuth: []
       parameters:
@@ -2269,15 +2309,15 @@ paths:
         '401':
           description: Yetkisiz.
         '403':
-          description: Erişim yok.
+          description: Erişim yok (Rol).
         '404':
           description: Ürün bulunamadı.
         '500':
           description: Sunucu hatası.
     delete:
-      summary: ID'ye göre bir base product siler (pasif yap)
-      description: "Sadece **Admin** rolü silebilir. Ürünü veritabanından silmez, `isActive` alanını `false` yapar (soft delete)."
-      tags: [BaseProducts]
+      summary: ID'ye göre bir toptan ürünü SİLER (Hard Delete)
+      description: "Sadece **Admin** rolü silebilir. Bu işlem ürünü veritabanından kalıcı olarak SİLER. `isActive` alanını `false` yapmaz."
+      tags: [Wholesale (Base Products)]
       security:
         - bearerAuth: []
       parameters:
@@ -2300,16 +2340,16 @@ paths:
         '401':
           description: Yetkisiz.
         '403':
-          description: Erişim yok.
+          description: Erişim yok (Rol).
         '404':
           description: Ürün bulunamadı.
         '500':
           description: Sunucu hatası.
   /api/wholesale/{id}/image:
     put:
-      summary: Base product için resim yükler
+      summary: Toptan ürün (base product) için resim yükler
       description: "Belirtilen ID'ye sahip base product için bir resim yükler. Sadece **Admin** rolü erişebilir."
-      tags: [BaseProducts]
+      tags: [Wholesale (Base Products)]
       security:
         - bearerAuth: []
       parameters:
@@ -2346,16 +2386,16 @@ paths:
         '401':
           description: Yetkisiz.
         '403':
-          description: Erişim yok.
+          description: Erişim yok (Rol).
         '404':
           description: Ürün bulunamadı.
         '500':
           description: Sunucu hatası.
   /api/wholesale/name/{name}:
     get:
-      summary: Ada göre bir base product getirir
+      summary: Ada göre bir toptan ürün (base product) getirir
       description: "**Seller** ve **Admin** rollerine sahip kullanıcılar erişebilir."
-      tags: [BaseProducts]
+      tags: [Wholesale (Base Products)]
       security:
         - bearerAuth: []
       parameters:
@@ -2374,7 +2414,7 @@ paths:
         '401':
           description: Yetkisiz.
         '403':
-          description: Erişim yok.
+          description: Erişim yok (Rol).
         '404':
           description: Ürün bulunamadı.
         '500':
@@ -3558,11 +3598,11 @@ paths:
                   example: 1
       responses:
         '200':
-          description: Güncel sepet döner
+          description: Güncel sepet döner (populate edilmemiş)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PopulatedCart"
+                $ref: "#/components/schemas/Cart"
         '400':
           description: "Yetersiz stok."
         '401':
@@ -3606,7 +3646,7 @@ paths:
                     type: string
                     example: "Ürün miktarı başarıyla güncellenmiştir"
                   data:
-                    $ref: '#/components/schemas/PopulatedCart'
+                    $ref: '#/components/schemas/Cart'
         '400':
           description: "Kullanıcının sepeti bulunmamaktadır veya yetersiz stok."
         '401':

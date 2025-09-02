@@ -356,8 +356,11 @@ export const getWishlist = async (req, res) => {
       path: "wishlist",
       populate: [
         {
-          path: "baseProduct",
-          select: "masterName masterImage",
+          path: "product",
+          populate: {
+            path: "baseProduct",
+            select: "masterName masterImage",
+          },
         },
         {
           path: "seller",

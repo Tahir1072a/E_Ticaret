@@ -4,7 +4,6 @@ import MasterCoupon, {
 } from "../models/couponModel.js";
 import Cart from "../models/cartModel.js";
 import { BaseProduct } from "../models/baseProductModel.js";
-import mongoose from "mongoose";
 
 const validateCategories = async (categories) => {
   if (!Array.isArray(categories) || categories.length === 0) {
@@ -135,10 +134,13 @@ export const applyCoupon = async (req, res) => {
       }
     }
 
-    const subTotal = cart.items.reduce(
-      (acc, item) => acc + item.quantity * item.price,
-      0
-    );
+    const subTotal = cart.items.reduce((acc, item) => {
+      if (item.onSale) {
+        return acc + item.salePrice * item.quantity;
+      } else {
+        return acc + item.quantity * item.price;
+      }
+    }, 0);
 
     if (subTotal < coupon.minPurchaseAmount) {
       return res.status(400).json({
@@ -188,7 +190,7 @@ export const applyCoupon = async (req, res) => {
         discountAmount = coupon.discountValue;
       }
     }
-
+    console.log(discountAmount);
     const total = Math.max(0, subTotal - discountAmount);
 
     cart.subTotal = subTotal;

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { StoreProduct } from "../models/storeProductModel.js";
 
 export const cartItemSchema = new mongoose.Schema({
   product: {
@@ -16,6 +17,12 @@ export const cartItemSchema = new mongoose.Schema({
   price: {
     type: Number,
     required: true,
+  },
+  onSale: {
+    type: Boolean,
+  },
+  salePrice: {
+    type: Number,
   },
 });
 
@@ -43,12 +50,16 @@ const cartSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-cartSchema.pre("save", function (next) {
+cartSchema.pre("save", async function (next) {
   let total = 0;
 
   if (this.items.length > 0) {
     total = this.items.reduce((acc, item) => {
-      return acc + item.price * item.quantity;
+      if (item.onSale) {
+        return acc + item.salePrice * item.quantity;
+      } else {
+        return acc + item.quantity * item.price;
+      }
     }, 0);
   }
 

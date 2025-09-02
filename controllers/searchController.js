@@ -55,8 +55,8 @@ export const searchStoreProducts = async (req, res) => {
             query: q,
             fields: [
               "description",
-              "baseName",
-              "baseCategoryName",
+              "masterName",
+              "masterCategoryName",
               "sellerName",
             ],
             fuzziness: "AUTO",
