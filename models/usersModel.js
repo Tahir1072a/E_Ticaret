@@ -1,6 +1,13 @@
 import mongoose, { Mongoose } from "mongoose";
 import { addressSchema } from "./commonSchemas.js";
 
+const wishlistSchema = new mongoose.Schema({
+  product: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "StoreProduct",
+  },
+});
+
 const userSchema = new mongoose.Schema(
   {
     email: {
@@ -31,12 +38,7 @@ const userSchema = new mongoose.Schema(
       type: Number,
     },
     shippingAddresses: [addressSchema],
-    wishlist: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "StoreProduct",
-      },
-    ],
+    wishlist: [wishlistSchema],
     passwordResetToken: {
       type: String,
     },

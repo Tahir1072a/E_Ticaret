@@ -13,7 +13,7 @@ import {
 
 const router = express.Router();
 
-router.use(protect, authorize("Seller"));
+router.use(protect, authorize("Admin", "Seller"));
 
 router.post("/", createStoreProduct);
 

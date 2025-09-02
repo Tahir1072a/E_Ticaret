@@ -1,6 +1,8 @@
 import { StoreProduct } from "../models/storeProductModel.js";
 import mongoose from "mongoose";
 import { BaseProduct } from "../models/baseProductModel.js";
+import Cart from "../models/cartModel.js";
+import { User } from "../models/usersModel.js";
 
 export const createStoreProduct = async (req, res) => {
   const session = await mongoose.startSession();
@@ -88,7 +90,7 @@ export const deleteStoreProduct = async (req, res) => {
 
     const product = await StoreProduct.findOne({
       _id: id,
-      seller: sellerId,
+      seller: sellerId, // Yetki kontrolü için...
     }).populate("baseProduct", "masterName");
 
     if (!product) {
@@ -96,8 +98,20 @@ export const deleteStoreProduct = async (req, res) => {
         message: "Bu ürünü bulamadık veya silme yetkiniz yok.",
       });
     }
-    const name = product.baseProduct.masterName;
 
+    await Cart.updateMany(
+      { "items.product": id },
+      { $pull: { items: { product: id } } }
+    );
+
+    await User.updateMany(
+      {
+        "wishlist.product": id,
+      },
+      { $pull: { wishlist: { product: id } } }
+    );
+
+    const name = product.baseProduct.masterName;
     product.isActive = false;
     await product.save();
 

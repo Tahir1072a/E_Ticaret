@@ -394,7 +394,7 @@ export const addToWishlist = async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(
       id,
       {
-        $addToSet: { wishlist: productId },
+        $addToSet: { wishlist: { product: productId } },
       },
       { new: true }
     );
